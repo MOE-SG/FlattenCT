@@ -16,7 +16,7 @@ M5 Low Gain tables with two measurements in one row split each row into separate
 
 For the full M5 layout, the six Low/High Gain tables flatten to 204 Phase/Attenuation fields (17 spacing/type rows × 2 measurements × 6 tables). The six corresponding Air-Hang tables flatten to 168 UT/LT Phase/Attenuation fields (7 spacings × 4 measurements × 6 tables).
 
-AGR/DDS2 reports use section-aware matrix parsing. Calibration A/B values, DSP RPM fields, DDS2 axis/frequency or statistical measurements, trigger/scale factors, and normalization factors become individual columns. `DDS2 Burst Header_Channels Enabled` remains one field containing values such as `XL XH YL YH ZL ZH Ang`. The focused regression page at `tests/agr-regression.html` validates this layout.
+AGR/DDS2 reports use section-aware matrix parsing. Calibration A/B values, DSP RPM fields, DDS2 axis/frequency or statistical measurements, trigger/scale factors, and normalization factors become individual columns. The fixed AGR field set is initialized as empty before extraction, so a missing section remains an empty CSV field rather than removing the column. `DDS2 Burst Header_Channels Enabled` remains one field containing values such as `XL XH YL YH ZL ZH Ang`. The focused regression page at `tests/agr-regression.html` validates this layout.
 
 No files leave the browser. The included `.nojekyll` marker makes the site compatible with static GitHub Pages hosting.
 

@@ -203,8 +203,8 @@
     { match: /^DDS2 Burst Header$/i, headers: ["Version", "Peak Th(g)", "Shock Th(g)", "Avg Th(g)", "Ang Th", "Channels Enabled"] },
     { match: /^Trigger Source$/i, headers: ["Trigger Source", "Max Peak(g)", "Max Shock(g)", "Max Avg(g)", "Max Ang(g)"] },
     { match: /^Scale Factors$/i, headers: ["XL", "XH", "YL", "YH", "ZL", "ZH"] },
-    { match: /^DDS2 Normalization Factors: 25 G Sensor$/i, headers: ["Accel", "Average (g)", "Shock (g)", "Peak (g)"] },
-    { match: /^DDS2 Normalization Factors: 200 G Sensor$/i, headers: ["Accel", "Average (g)", "Shock (g)", "Peak (g)"] }
+    { match: /^DDS2 Normalization Factors:\s*25 G Sensor$/i, headers: ["Accel", "Average (g)", "Shock (g)", "Peak (g)"] },
+    { match: /^DDS2 Normalization Factors:\s*200 G Sensor$/i, headers: ["Accel", "Average (g)", "Shock (g)", "Peak (g)"] }
   ];
 
   function agrSection(table) {
@@ -221,7 +221,11 @@
 
   function extractAgrMatrix(table, section, sectionName, row) {
     const rows = agrDataRows(table, section.headers.length)
-      .filter((cells) => !section.headers.every((header, index) => cells[index] && new RegExp(`^${header.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i").test(cells[index])));
+      .filter((cells) => {
+        const values = cells.slice(1);
+        const numericValues = values.filter((value) => /^[-+]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(value)).length;
+        return numericValues >= Math.max(1, section.headers.length - 2);
+      });
     if (!rows.length) return false;
     for (const cells of rows) {
       const hasLabel = section.headers.length > 1 && !/^-?\d+(?:\.\d+)?$/.test(cells[0]);
@@ -258,6 +262,19 @@
 
   function extractAgr(document, row) {
     if (!/AGR\/DDS2 Confidence Test/i.test(textOf(document.body))) return false;
+    const matrixRows = ["X", "Y", "Z"];
+    agrSections.forEach((section) => {
+      const sectionName = section.match.source
+        .replace(/\\s\*/g, " ")
+        .replace(/^\^|\$$/g, "")
+        .replace(/\\/g, "")
+      const rows = /^Accel$/i.test(section.headers[0]) ? matrixRows : [""];
+      rows.forEach((label) => {
+        section.headers.slice(/^Accel$/i.test(section.headers[0]) ? 1 : 0).forEach((header) => {
+          addField(row, pathKey([sectionName, /^Accel$/i.test(section.headers[0]) ? "Accel" : "", label, header]), "");
+        });
+      });
+    });
     let pendingSection = null;
     document.querySelectorAll("table").forEach((table) => {
       if (extractAgrCalibration(table, row)) return;

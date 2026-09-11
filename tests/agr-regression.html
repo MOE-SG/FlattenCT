@@ -2,7 +2,7 @@
 <meta charset="utf-8">
 <title>FlattenCT AGR parser regression</title>
 <pre id="output">Running...</pre>
-<iframe id="app" src="../index.html?v=12" hidden></iframe>
+<iframe id="app" src="../index.html?v=13" hidden></iframe>
 <script>
   const output = document.getElementById("output");
   const app = document.getElementById("app");
@@ -28,6 +28,8 @@
         "DDS2 Base Correction Data_Accel_Z_200G (Cnts)": "-6.00",
         "DDS2 Vibration Data: 25 G Sensor_Accel_X_Average (g)": "0.02",
         "DDS2 Vibration Data: 200 G Sensor_Accel_Z_Peak (g)": "14.40",
+        "DDS2 Normalization Factors: 25 G Sensor_Accel_X_Average (g)": "0.03",
+        "DDS2 Normalization Factors: 200 G Sensor_Accel_Z_Peak (g)": "4.80",
         "DDS2 Burst Header_Channels Enabled": "XL XH YL YH ZL ZH Ang"
       };
       for (const [key, value] of Object.entries(expected)) {
