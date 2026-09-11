@@ -260,8 +260,45 @@
     return rows.some((cells) => /^Gamma Calibration Factors$|^High Voltage Setting$/i.test(cells[0]));
   }
 
+  function extractAgrTopTable(table, row) {
+    const rows = Array.from(table.rows || [])
+      .map((tr) => rowCells(tr, true))
+      .filter((cells) => cells.length >= 2);
+    for (const cells of rows) {
+      if (cells[1] === ":" || cells[1] === "：") {
+        addField(row, cells[0], cells.slice(2).join(" "));
+      } else if (cells.length === 2 && isUseful(cells[0]) && isUseful(cells[1])) {
+        addValue(row, cells[0], cells[1]);
+      }
+    }
+    for (let index = 0; index + 1 < rows.length; index += 1) {
+      const headers = rows[index];
+      const values = rows[index + 1];
+      if (headers.length < 2 || values.length !== headers.length || values.every((value) => !isUseful(value))) continue;
+      headers.forEach((header, column) => {
+        if (isUseful(header) && isUseful(values[column])) addValue(row, header, values[column]);
+      });
+    }
+  }
+
+  function extractAgrTopFields(document, row) {
+    const labels = /^(Customer|Rig Name|Well ID|Well Name|Deck #|Description|Field|Job No|RLL Tool String ID #|PM\/Pulser Tool String ID #|Grease Gun Float Pressure\(psi\)|Grease Gun Seat Pressure|Comments|Engineer|Release Core Version|Release Core Build|Release Insite Version|Release Insite Build|Start Time|End Time|Calibration Time|Name|Location|Blanket Tech ID|Blanket API Value)$/i;
+    const cells = Array.from(document.querySelectorAll("td, th"))
+      .filter((cell) => !cell.querySelector("td, th"))
+      .map(textOf);
+    for (let index = 0; index < cells.length; index += 1) {
+      if (!labels.test(cells[index])) continue;
+      if (cells[index + 1] === ":" || cells[index + 1] === "：") {
+        addField(row, cells[index], cells[index + 2] || "");
+      } else if (isUseful(cells[index + 1]) && !labels.test(cells[index + 1])) {
+        addValue(row, cells[index], cells[index + 1]);
+      }
+    }
+  }
+
   function extractAgr(document, row) {
     if (!/AGR\/DDS2 Confidence Test/i.test(textOf(document.body))) return false;
+    extractAgrTopFields(document, row);
     const matrixRows = ["X", "Y", "Z"];
     agrSections.forEach((section) => {
       const sectionName = section.match.source
@@ -276,7 +313,8 @@
       });
     });
     let pendingSection = null;
-    document.querySelectorAll("table").forEach((table) => {
+    const tables = Array.from(document.querySelectorAll("table"));
+    tables.forEach((table) => {
       if (extractAgrCalibration(table, row)) return;
       const section = agrSection(table);
       if (section) pendingSection = { section, name: textOf(Array.from(table.querySelectorAll("td, th")).find((cell) => section.match.test(textOf(cell)))) };
@@ -290,7 +328,6 @@
     const row = { SourceFile: name };
     if (document.querySelector("parsererror")) throw new Error("The browser could not parse this HTML.");
     if (extractAgr(document, row)) {
-      extractTextPairs(document, row);
       const title = clean(document.title);
       if (title) addValue(row, "ReportTitle", title);
       if (Object.keys(row).length === 1) throw new Error("No readable fields were found.");

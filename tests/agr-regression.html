@@ -2,7 +2,7 @@
 <meta charset="utf-8">
 <title>FlattenCT AGR parser regression</title>
 <pre id="output">Running...</pre>
-<iframe id="app" src="../index.html?v=13" hidden></iframe>
+<iframe id="app" src="../index.html?v=22" hidden></iframe>
 <script>
   const output = document.getElementById("output");
   const app = document.getElementById("app");
@@ -14,6 +14,12 @@
       const html = await fetch(report).then((response) => response.text());
       row = app.contentWindow.FlattenCT.parseHtml("agr.html", html);
       const expected = {
+        "Customer": "",
+        "Well ID": "10505643",
+        "Description": "CT_2025_07_17 08_29_29",
+        "Start Time": "17-Jul-25 08:32:08",
+        "Calibration Time": "16-Jul-25 08:00:10",
+        "Blanket API Value": "820.10",
         "Gamma Calibration Factors_A": "0.10000",
         "Gamma Calibration Factors_B": "0.10000",
         "High Voltage Setting_A": "1116.1",
@@ -45,3 +51,4 @@
     }
   });
 </script>
+
