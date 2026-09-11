@@ -10,6 +10,8 @@ DDSR self-test parameter tables with a `Test Meas.*` column export only that mea
 
 Nested ECMB diagnostics tables are matched to their outer `Actual Reading` header, so only actual measurements are exported. Colon-separated metadata fields are retained as columns even when their value is blank. The focused regression page at `tests/ecmb-regression.html` validates this layout.
 
+Nested M5 diagnostics tables use the same outer-header matching and tolerate parameters with blank units. Their actual readings, including status suffixes such as `H`, `L`, and `NaN Failed`, are retained without exporting limits. The focused regression page at `tests/m5-regression.html` validates this layout.
+
 No files leave the browser. The included `.nojekyll` marker makes the site compatible with static GitHub Pages hosting.
 
 ## CSV safety

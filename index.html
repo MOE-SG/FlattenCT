@@ -73,11 +73,12 @@
         <li>Confidence-test measurement tables export only <code>Actual Reading</code>; category, parameter, and unit are combined (for example <code>2MHz_ReceiverTemperature (C)</code>).</li>
         <li>DDSR parameter tables export only <code>Test Meas.*</code>; colon-separated results such as <code>FRAM Test: PASS</code> are retained.</li>
         <li>Nested ECMB diagnostics tables use the outer <code>Actual Reading</code> header; blank colon-separated metadata labels remain available as empty columns.</li>
+        <li>Nested M5 diagnostics tables tolerate blank units and retain Actual Reading status suffixes such as <code>H</code>, <code>L</code>, and <code>NaN Failed</code>.</li>
         <li>Repeated fields are retained in source order and joined with <code> | </code>; blank values do not overwrite a populated value.</li>
         <li>Files are read locally in your browser and are never uploaded.</li>
       </ul>
     </details>
   </main>
-  <script src="app.js?v=8"></script>
+  <script src="app.js?v=9"></script>
 </body>
 </html>

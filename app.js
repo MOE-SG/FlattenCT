@@ -70,8 +70,8 @@
     const testMeasurementIndex = cells.findIndex((cell) => /^test\s*meas(?:\.|\b)/i.test(cell));
     const unitsIndex = cells.findIndex((cell) => /^units?$/i.test(cell));
     if (actualIndex > 0 && unitsIndex >= 0) {
-      const firstCellIsParameter = !/^(units?|low\s+limit|actual\s+reading|high\s+limit)$/i.test(cells[0]);
-      const offset = firstCellIsParameter ? 0 : 1;
+      const leadingParameterCell = !/^units?$/i.test(cells[0]);
+      const offset = leadingParameterCell ? 0 : 1;
       return { actualIndex: actualIndex + offset, unitsIndex: unitsIndex + offset };
     }
     return testMeasurementIndex > 0 ? { actualIndex: testMeasurementIndex, testMeasurement: true } : null;
@@ -86,12 +86,13 @@
   }
 
   function extractMetricTable(table, parsed, metric, row) {
-    if (!metric || !parsed.length || parsed.some((cells) => cells.length < 5)) return false;
+    if (!metric || !parsed.length || parsed.some((cells) => cells.length < 4)) return false;
     const category = precedingMetricCategory(table);
     for (const cells of parsed) {
       const label = cells[0].replace(/[:：]$/, "");
-      const unit = cells[metric.unitsIndex] || "";
-      const actual = cells[metric.actualIndex] || "";
+      const missingUnit = cells.length === metric.actualIndex + 1;
+      const unit = missingUnit ? "" : cells[metric.unitsIndex] || "";
+      const actual = cells[missingUnit ? metric.actualIndex - 1 : metric.actualIndex] || "";
       if (!isUseful(label) || !isUseful(actual)) continue;
       const parameter = keyPart(label).replace(/\s+/g, "");
       const key = `${pathKey([category, parameter])}${unit ? ` (${keyPart(unit)})` : ""}`;

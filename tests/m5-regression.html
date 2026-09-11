@@ -1,0 +1,33 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>FlattenCT M5 parser regression</title>
+<pre id="output">Running...</pre>
+<iframe id="app" src="../index.html" hidden></iframe>
+<script>
+  const output = document.getElementById("output");
+  const app = document.getElementById("app");
+  const report = "../10505643_0100_Confidence%20Test_EWR-M5_07_17_2025%2008_32_20%20AM.html";
+
+  app.addEventListener("load", async () => {
+    try {
+      const html = await fetch(report).then((response) => response.text());
+      const row = app.contentWindow.FlattenCT.parseHtml("m5.html", html);
+      const expected = {
+        "Transmitter Linearity Test_VoltageLinearityBias (mV)": "48636.00 H",
+        "Transmitter Linearity Test_VoltageLinearitySlope (mV_mV)": "0.00 L",
+        "Transmitter Linearity Test_VoltageLinearityR-Squared": "NaN Failed",
+        "Transmitter Linearity Test_CurrentLinearityBias (mA)": "0.00",
+        "Transmitter Linearity Test_CurrentLinearitySlope (mA_mV)": "0.00",
+        "Transmitter Linearity Test_CurrentLinearityR-Squared": "NaN Failed"
+      };
+      for (const [key, value] of Object.entries(expected)) {
+        if (row[key] !== value) throw new Error(`Expected ${key}=${value}, got ${row[key] ?? "(missing)"}`);
+      }
+      if (Object.keys(row).some((key) => /_(Low|High)Limit$/i.test(key))) throw new Error("Limit columns were exported");
+      output.textContent = "PASS: M5 nested Actual Reading values parsed, including blank-unit rows.";
+    } catch (error) {
+      output.textContent = `FAIL: ${error.message}`;
+      document.body.dataset.testFailed = "true";
+    }
+  });
+</script>
