@@ -60,8 +60,14 @@
   function metricHeader(cells) {
     if (cells.length < 2) return null;
     const actualIndex = cells.findIndex((cell) => /^actual\s+reading$/i.test(cell));
+    const testMeasurementIndex = cells.findIndex((cell) => /^test\s*meas(?:\.|\b)/i.test(cell));
     const unitsIndex = cells.findIndex((cell) => /^units?$/i.test(cell));
-    return actualIndex > 0 && unitsIndex >= 0 ? { actualIndex, unitsIndex } : null;
+    if (actualIndex > 0 && unitsIndex >= 0) {
+      const firstCellIsParameter = !/^(units?|low\s+limit|actual\s+reading|high\s+limit)$/i.test(cells[0]);
+      const offset = firstCellIsParameter ? 0 : 1;
+      return { actualIndex: actualIndex + offset, unitsIndex: unitsIndex + offset };
+    }
+    return testMeasurementIndex > 0 ? { actualIndex: testMeasurementIndex, testMeasurement: true } : null;
   }
 
   function precedingMetricCategory(table) {
@@ -87,8 +93,16 @@
     return true;
   }
 
+  function extractTestMeasurementTable(parsed, metric, row) {
+    for (const cells of parsed.slice(1)) {
+      const label = cells[0].replace(/[:：]$/, "");
+      const actual = cells[metric.actualIndex] || "";
+      if (isUseful(label) && isUseful(actual)) addValue(row, label, actual);
+    }
+  }
+
   function extractTable(table, row, currentMetric) {
-    const rows = Array.from(table.querySelectorAll(":scope > tbody > tr, :scope > tr"));
+    const rows = Array.from(table.querySelectorAll(":scope > thead > tr, :scope > tbody > tr, :scope > tr"));
     if (!rows.length) return currentMetric;
     const caption = table.querySelector(":scope > caption");
     const prefix = [...headingPath(table), caption ? textOf(caption) : ""].filter(Boolean);
@@ -96,6 +110,10 @@
     if (!parsed.length) return currentMetric;
     const header = parsed[0];
     const metric = metricHeader(header);
+    if (metric?.testMeasurement) {
+      extractTestMeasurementTable(parsed, metric, row);
+      return currentMetric;
+    }
     if (metric) return metric;
     if (extractMetricTable(table, parsed, currentMetric, row)) return currentMetric;
     const looksLikeHeader = header.length > 1 && header.some((cell) => /actual|value|reading|result|limit|unit|status/i.test(cell));
@@ -122,7 +140,10 @@
   function extractTextPairs(document, row) {
     const body = document.body;
     if (!body) return;
-    const text = body.innerText || body.textContent || "";
+    const clone = body.cloneNode(true);
+    clone.querySelectorAll("script, style").forEach((element) => element.remove());
+    clone.querySelectorAll("br").forEach((element) => element.replaceWith("\n"));
+    const text = clone.textContent || "";
     text.split(/\r?\n/).map(clean).filter(Boolean).forEach((line) => {
       const match = line.match(/^([^:：]{2,80})\s*[:：]\s*(.+)$/);
       if (match && !/[{};]/.test(match[1])) addValue(row, match[1], match[2]);

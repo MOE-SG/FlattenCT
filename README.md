@@ -6,6 +6,8 @@ The parser reads table rows, report metadata, headings/captions, and visible `Na
 
 Confidence-test tables with `Units`, `Low Limit`, `Actual Reading`, and `High Limit` columns export only the actual reading. A category heading and parameter are combined with the unit, for example `2MHz_ReceiverTemperature (C)`. The focused regression page at `tests/parser-regression.html` validates this behavior against the included EWR-SOLAR report.
 
+DDSR self-test parameter tables with a `Test Meas.*` column export only that measurement; `Low Limit`, `High Limit`, and `Failed Limit` are excluded. Colon-separated result lines such as `FRAM Test: PASS` are exported as their own fields. The focused regression page at `tests/ddsr-regression.html` validates this behavior against the included DDSR-HCIM report.
+
 No files leave the browser. The included `.nojekyll` marker makes the site compatible with static GitHub Pages hosting.
 
 ## CSV safety

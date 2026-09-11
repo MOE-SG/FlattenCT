@@ -1,0 +1,35 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>FlattenCT DDSR parser regression</title>
+<pre id="output">Running...</pre>
+<iframe id="app" src="../index.html" hidden></iframe>
+<script>
+  const output = document.getElementById("output");
+  const app = document.getElementById("app");
+  const report = "../11223344_0100_Confidence%20Test_DDSR-HCIM_12_31_2025%2011_07_03%20AM.html";
+
+  app.addEventListener("load", async () => {
+    try {
+      const html = await fetch(report).then((response) => response.text());
+      const row = app.contentWindow.FlattenCT.parseHtml("ddsr.html", html);
+      const expected = {
+        "Subbus (V)": "19.21",
+        "Analog 5V": "4.96",
+        "FRAM Test": "PASS",
+        "Flash Test": "PASS",
+        "Accelerometer Y": "OK",
+        "Accelerometer X": "OK",
+        "DDS-R Temp(C)": "26.75"
+      };
+      for (const [key, value] of Object.entries(expected)) {
+        if (row[key] !== value) throw new Error(`Expected ${key}=${value}, got ${row[key] || "(missing)"}`);
+      }
+      const parameterLimitColumns = Object.keys(row).filter((key) => /_(LowLimit|HighLimit|TestMeas\.\*|FailedLimit)$/i.test(key));
+      if (parameterLimitColumns.length) throw new Error(`Unexpected parameter limit columns: ${parameterLimitColumns.join(", ")}`);
+      output.textContent = "PASS: Test Meas.* values and colon-separated results parsed without limit columns.";
+    } catch (error) {
+      output.textContent = `FAIL: ${error.message}`;
+      document.body.dataset.testFailed = "true";
+    }
+  });
+</script>
