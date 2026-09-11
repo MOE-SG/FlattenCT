@@ -8,6 +8,8 @@ Confidence-test tables with `Units`, `Low Limit`, `Actual Reading`, and `High Li
 
 DDSR self-test parameter tables with a `Test Meas.*` column export only that measurement; `Low Limit`, `High Limit`, and `Failed Limit` are excluded. Colon-separated result lines such as `FRAM Test: PASS` are exported as their own fields. The focused regression page at `tests/ddsr-regression.html` validates this behavior against the included DDSR-HCIM report.
 
+Nested ECMB diagnostics tables are matched to their outer `Actual Reading` header, so only actual measurements are exported. Colon-separated metadata fields are retained as columns even when their value is blank. The focused regression page at `tests/ecmb-regression.html` validates this layout.
+
 No files leave the browser. The included `.nojekyll` marker makes the site compatible with static GitHub Pages hosting.
 
 ## CSV safety

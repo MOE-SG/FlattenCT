@@ -32,6 +32,13 @@
     else if (row[key] !== value && !row[key].split(" | ").includes(value)) row[key] += ` | ${value}`;
   }
 
+  function addField(row, key, value) {
+    key = pathKey([key]);
+    if (!key) return;
+    if (!(key in row)) row[key] = "";
+    if (isUseful(value)) addValue(row, key, value);
+  }
+
   function headingPath(element) {
     const headings = [];
     let current = element;
@@ -109,7 +116,7 @@
     const parsed = rows.map(rowCells).filter((cells) => cells.length);
     if (!parsed.length) return currentMetric;
     const header = parsed[0];
-    const metric = metricHeader(header);
+    const metric = parsed.map(metricHeader).find(Boolean);
     if (metric?.testMeasurement) {
       extractTestMeasurementTable(parsed, metric, row);
       return currentMetric;
@@ -128,8 +135,8 @@
           const suffix = header[column] || `Value${column}`;
           addValue(row, pathKey([...prefix, label, suffix]), cells[column]);
         }
-      } else if (cells.length >= 3 && /^[:：]$/.test(cells[1])) {
-        addValue(row, pathKey([...prefix, label]), cells.slice(2).join(" "));
+      } else if (cells.length >= 2 && /^[:：]$/.test(cells[1])) {
+        addField(row, pathKey([...prefix, label]), cells.slice(2).join(" "));
       } else {
         addValue(row, pathKey([...prefix, label]), cells.slice(1).join(" "));
       }

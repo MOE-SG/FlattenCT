@@ -1,0 +1,39 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>FlattenCT ECMB parser regression</title>
+<pre id="output">Running...</pre>
+<iframe id="app" src="../index.html" hidden></iframe>
+<script>
+  const output = document.getElementById("output");
+  const app = document.getElementById("app");
+  const fixture = `
+    <table>
+      <tr><td>Customer</td><td>:</td><td></td></tr>
+      <tr><td>Well ID</td><td>:</td><td>10505643</td></tr>
+    </table>
+    <table>
+      <tr><td class="v9navy">Ethernet Memory Board Diagnostics Data</td></tr>
+      <tr><td class="v9navy"></td><td class="v9navy">Units</td><td class="v9navy">Low Limit</td><td class="v9navy">Actual Reading</td><td class="v9navy">High Limit</td></tr>
+      <tr><td><table><tr><td>Board Temperate</td><td>C</td><td>0.00</td><td>24.45</td><td>150.00</td></tr><tr><td>Board Current</td><td>mA</td><td>10.00</td><td>39.75</td><td>60.00</td></tr></table></td></tr>
+    </table>`;
+
+  app.addEventListener("load", () => {
+    try {
+      const row = app.contentWindow.FlattenCT.parseHtml("ecmb.html", fixture);
+      const expected = {
+        Customer: "",
+        "Well ID": "10505643",
+        "Ethernet Memory Board Diagnostics Data_BoardTemperate (C)": "24.45",
+        "Ethernet Memory Board Diagnostics Data_BoardCurrent (mA)": "39.75"
+      };
+      for (const [key, value] of Object.entries(expected)) {
+        if (row[key] !== value) throw new Error(`Expected ${key}=${value}, got ${row[key] ?? "(missing)"}`);
+      }
+      if (Object.keys(row).some((key) => /_(Low|High)Limit$/i.test(key))) throw new Error("Limit columns were exported");
+      output.textContent = "PASS: ECMB metadata and nested Actual Reading values parsed.";
+    } catch (error) {
+      output.textContent = `FAIL: ${error.message}`;
+      document.body.dataset.testFailed = "true";
+    }
+  });
+</script>
