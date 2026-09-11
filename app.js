@@ -157,16 +157,26 @@
     if (!state.rows.length) return;
     $("result-summary").textContent = `${state.rows.length} rows × ${state.columns.length} columns. Empty cells mean that field was not present in that source report.`;
     $("preview-table").querySelector("thead").innerHTML = `<tr>${state.columns.map((column) => `<th>${escapeHtml(column)}</th>`).join("")}</tr>`;
-    $("preview-table").querySelector("tbody").innerHTML = state.rows.map((row) => `<tr>${state.columns.map((column) => `<td>${escapeHtml(row[column] || "")}</td>`).join("")}</tr>`).join("");
+    $("preview-table").querySelector("tbody").innerHTML = state.rows.map((row) => `<tr>${state.columns.map((column) => `<td>${escapeHtml(row[column] ?? "")}</td>`).join("")}</tr>`).join("");
+  }
+
+  const numericNegative = /^\s*-(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?\s*$/;
+
+  function excelSafeText(value) {
+    const text = value == null ? "" : String(value);
+    const dangerous = text.match(/^[\s\uFEFF]*([=+@-])/);
+    if (!dangerous) return text;
+    if (dangerous[1] === "-" && numericNegative.test(text)) return text;
+    return `'${text}`;
   }
 
   function csvValue(value) {
-    const text = value == null ? "" : String(value);
+    const text = excelSafeText(value);
     return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
   }
 
   function downloadCsv() {
-    const csv = [state.columns.map(csvValue).join(","), ...state.rows.map((row) => state.columns.map((column) => csvValue(row[column] || "")).join(","))].join("\r\n");
+    const csv = [state.columns.map(csvValue).join(","), ...state.rows.map((row) => state.columns.map((column) => csvValue(row[column] ?? "")).join(","))].join("\r\n");
     const url = URL.createObjectURL(new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" }));
     const link = document.createElement("a");
     link.href = url;

@@ -5,3 +5,7 @@ FlattenCT is a dependency-free, client-side HTML-to-CSV converter for confidence
 The parser reads table rows, report metadata, headings/captions, and visible `Name: value` lines. It creates one row per source file and the union of every discovered field as columns. When the same field is encountered more than once, distinct values are joined in source order with ` | `; later blank values never erase a populated value. Heading and caption context is joined to parameter names with underscores.
 
 No files leave the browser. The included `.nojekyll` marker makes the site compatible with static GitHub Pages hosting.
+
+## CSV safety
+
+Before serialization, values beginning with `=`, `+`, `@`, or a non-numeric `-` (including after leading whitespace or a BOM) are prefixed with an apostrophe. This makes Excel treat them as literal text instead of formulas or commands. Valid negative numeric values are preserved, and standard RFC-compatible CSV quoting is applied afterward.
