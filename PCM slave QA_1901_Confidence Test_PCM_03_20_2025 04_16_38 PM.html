@@ -1,0 +1,429 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html><head><META http-equiv="Content-Type" content="text/html; charset=utf-8"><style type="text/css">
+          .failed{
+          color: red;
+          font-weight: bold;
+          }
+          .information,
+          .success,
+          .retry,
+          .data,
+          .warning,
+          .error,
+          .normal,
+          .debug,
+          .communication,
+          .stacktrace{
+          font-weight: bold;
+          font-family: verdana;
+          font-size: 10pt;
+          }
+          .success{
+          color: green;
+          }
+          .retry{
+          color: purple;
+          }
+          .data{
+          color: blue;
+          }
+          .information{
+          color: black;
+          }
+          .error{
+          color: red;
+          }
+          .warning{
+          color: #FF8C00;
+          }
+          .v9navy{
+          color: navy;
+          font-family: Verdana;
+          font-size: 9pt;
+          font-weight:bold;
+          padding-bottom:4pt;
+          }
+          .hide {
+          display: none;
+          }
+        </style><style type="text/css" media="print">
+          .noPrint
+          {
+          display: none;
+          }
+        </style><script language="JavaScript" type="text/javascript">
+              
+          
+var Msg_Info = "information";
+var Msg_Warning = "warning";
+var Msg_Error = "error";
+var Msg_Data = "data";
+var Msg_Retry = "retry";
+var Msg_Success = "success";
+
+//The below are for reports from 7.x and earlier (before MLS/MLV changes)
+var Msg_Normal = "normal";
+var Msg_Debug = "debug";
+var Msg_Comm = "communication";
+var Msg_StackTrace = "stacktrace";
+//
+var TdMinus, TdPlus;
+var _displayMap = new Array();
+var _msg;
+var _loadingMsg;
+
+window.onload = function()
+{
+    InitB64Decoder();
+    TdMinus = new TImage(9, 9, 'gAEKwAeAAQLAB4ABAsAHgAECwAGAAgXAAYABAsAHgAECwAeAAQLAB4ABCg==', '////gICAAAAA');
+    TdPlus = new TImage(9, 9, 'gAEKwAeAAQLAA0ACwAOAAQLAA0ACwAOAAQLAAYACBcABgAECwANAAsADgAECwANAAsADgAECwAeAAQo=','////gICAAAAA');
+    TdMinus.BuildBitmapAndAdjust(2, 0);
+    TdPlus.BuildBitmapAndAdjust(2, 0);
+
+    _msg = document.getElementById("msg");
+    
+    _loadingMsg = document.body.appendChild(document.createElement("div"));
+    _loadingMsg.style.backgroundColor = "orange";    
+    _loadingMsg.style.width = "200px";
+    _loadingMsg.style.height = "20px";    
+    _loadingMsg.style.display = '';
+    _loadingMsg.style.position = "fixed";
+    _loadingMsg.style.border = "1px solid silver";
+    _loadingMsg.style.left = 0;
+    _loadingMsg.style.top = 0;
+    _loadingMsg.appendChild(document.createElement("div")).innerText = "Loading...";
+        
+    _cache = new Array();
+    _cache[Msg_Info] = new Array();
+    _cache[Msg_Warning] = new Array();
+    _cache[Msg_Retry] = new Array();
+    _cache[Msg_Success] = new Array();
+    _cache[Msg_Data] = new Array();
+    _cache[Msg_Error] = new Array();
+    
+    _cache[Msg_Normal] = new Array();
+    _cache[Msg_Debug] = new Array();
+    _cache[Msg_Comm] = new Array();
+    _cache[Msg_StackTrace] = new Array();
+
+    _displayMap[Msg_Info] = false;
+    _displayMap[Msg_Warning] = false;
+    _displayMap[Msg_Retry] = false;
+    _displayMap[Msg_Success] = false;
+    _displayMap[Msg_Data] = false;
+    _displayMap[Msg_Error] = false;
+    
+    _displayMap[Msg_Normal] = false;
+    _displayMap[Msg_Debug] = false;
+    _displayMap[Msg_Comm] = false;
+    _displayMap[Msg_StackTrace] = false;
+    document.getElementById("id"+Msg_Info).appendChild(TdPlus.BkgrndCell.cloneNode(true));      
+    
+    setTimeout(function() { InitBitmaps(); }, 0);
+    setTimeout(function() { CacheItems(); }, 0);
+}
+function CacheItems() 
+{
+    if (_msg.childNodes != null) {        
+        var temp = document.getElementsByName(Msg_Info);
+        for (var count = 0; count < temp.length; count++) {
+            _cache[Msg_Info].push(temp[count]);
+        }
+         temp = document.getElementsByName(Msg_Warning);
+        for (var count = 0; count < temp.length; count++) {
+            _cache[Msg_Warning].push(temp[count]);
+        }        
+         temp = document.getElementsByName(Msg_Retry);
+        for (var count = 0; count < temp.length; count++) {
+            _cache[Msg_Retry].push(temp[count]);
+        }        
+         temp = document.getElementsByName(Msg_Success);
+        for (var count = 0; count < temp.length; count++) {
+            _cache[Msg_Success].push(temp[count]);
+        }        
+         temp = document.getElementsByName(Msg_Data);
+        for (var count = 0; count < temp.length; count++) {
+            _cache[Msg_Data].push(temp[count]);
+        }
+         temp = document.getElementsByName(Msg_Error);
+        for (var count = 0; count < temp.length; count++) {
+            _cache[Msg_Error].push(temp[count]);
+        }
+        
+        temp = document.getElementsByName(Msg_Normal);
+        for (var count = 0; count < temp.length; count++) {
+            _cache[Msg_Normal].push(temp[count]);
+        }
+        temp = document.getElementsByName(Msg_Debug);
+        for (var count = 0; count < temp.length; count++) {
+            _cache[Msg_Debug].push(temp[count]);
+        }        
+        temp = document.getElementsByName(Msg_Comm);
+        for (var count = 0; count < temp.length; count++) {
+            _cache[Msg_Comm].push(temp[count]);
+        }        
+        temp = document.getElementsByName(Msg_StackTrace);
+        for (var count = 0; count < temp.length; count++) {
+            _cache[Msg_StackTrace].push(temp[count]);
+        }
+    }
+    _loadingMsg.style.display = "none";
+}
+function ToggleSign(toggleID, showPlusMinusImage)
+{
+    var container = document.getElementById("id"+toggleID);
+    var css = toggleID;
+    container.innerHTML = "";
+    if (_displayMap[toggleID] == false)     //current state is plus
+    {
+      if(showPlusMinusImage)
+      {
+        container.appendChild(TdMinus.BkgrndCell.cloneNode(true));
+      }
+    }
+    else 
+    {
+        css = "hide";
+        if(showPlusMinusImage)
+        {
+            container.appendChild(TdPlus.BkgrndCell.cloneNode(true));
+        }
+    }
+    _displayMap[toggleID] = !_displayMap[toggleID];
+    if (_displayMap[Msg_Info] || _displayMap[Msg_Warning] || _displayMap[Msg_Retry] || _displayMap[Msg_Success] || _displayMap[Msg_Data] || _displayMap[Msg_Error] ||
+        _displayMap[Msg_Normal] || _displayMap[Msg_Debug] || _displayMap[Msg_Comm] || _displayMap[Msg_StackTrace])
+        _msg.style.display = '';
+    else
+        _msg.style.display = 'none';
+        
+    var cache = _cache[toggleID];
+    if (cache.length > 0 && cache[0].className != css) 
+    {
+      //var datetime = new Date();
+      //var ticks = datetime.getTime();
+      if (css != "hide")
+      {
+        container.parentNode.style.cursor = "wait";
+      }  
+      setTimeout(function()
+      {
+        for (var count = 0; count < cache.length; count++) 
+        {
+          cache[count].className = css;
+        }
+        container.parentNode.style.cursor = "pointer";
+      }, 0);
+      //datetime =  new Date();
+      //alert(datetime.getTime() - ticks);
+    }    
+}
+
+        </script><script type="text/javascript">
+              function InitBitmaps(){}
+            </script><script type="text/javascript" id="idTCompression">//-----------------------------------------------------------------------------
+//  Ajax library
+//-----------------------------------------------------------------------------
+//  Date: Mar 2010
+//  Author: Tung Dao
+//
+//  The TCompression algorithm is an attempt to losslessly compress raw 24-bit bitmap array
+//  and embed the bitmap data into an html document under base64 format. In simple
+//  bitmap that does not use many different colors such as histogram, the compression
+//  can be as good as 99%. The speed improvement can be much better if we can span both
+//  horizontally and vertically. It is not hard to implement both horizontal and vertical span
+//  from this horizontal-only span version. However, due to time constraint, I am doing only 
+//  horizontally span at the moment.
+//-----------------------------------------------------------------------------
+
+//Embed image
+//-----------------------------------------------------------------------------
+var Mask_FF = 255;
+var Mask_F = 15;
+var Mask_Opcode = 192;  //0xC0  Also used as background rgb mask
+var Mask_Lower6 = 63;   //0x3F
+var Mask_Single = 64;   //0x40
+var Mask_Span = 128;    //0x80
+var Chars_B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+var Chars_Hex = "0123456789ABCDEF";
+
+var _b64Decoder = new Array();
+var _pixDiv = CreateElement("div");
+
+//window.onload = function() {    
+//    InitB64Decoder();
+//}
+
+function InitB64Decoder() {
+    for (var index = 0; index < Chars_B64.length; index++) {
+        _b64Decoder[Chars_B64.charAt(index)] = index;
+    }
+    _b64Decoder['='] = 0;
+
+    _pixDiv.style.lineHeight = 0;
+    _pixDiv.style.fontSize = 0;
+    _pixDiv.style.height = "0px";
+    _pixDiv.style.position = "absolute"
+    _pixDiv.style.borderWidth = "0px 0px 1px";
+    _pixDiv.style.borderStyle = "solid";
+}
+function B64ToBin(b3, b2, b1, b0) {
+    var byte3 = (b3 << 18) | (b2 << 12) | (b1 << 6) | b0;
+    return new Array(byte3 >> 16, (byte3 >> 8) & Mask_FF, byte3 & Mask_FF);
+}
+function DecodeB64(b64Data) {
+    var arr = new Array();
+    for (var nB64 = 0, nHex = 0; nB64 < b64Data.length; nB64 += 4, nHex += 3) {
+        var byte3 = B64ToBin(_b64Decoder[b64Data.charAt(nB64)], _b64Decoder[b64Data.charAt(nB64 + 1)], _b64Decoder[b64Data.charAt(nB64 + 2)], _b64Decoder[b64Data.charAt(nB64 + 3)]);
+        arr.push(byte3[0]);
+        if (b64Data.charAt(nB64 + 2) != '=') {
+            arr.push(byte3[1]);
+            if (b64Data.charAt(nB64 + 3) != '=') {
+                arr.push(byte3[2]);
+            }
+        }
+    }
+    return arr;
+}
+function MakeRGB(msb, b2, lsb) {
+    var rgb = '#';
+    rgb += Chars_Hex.charAt((msb >> 4) & Mask_F);
+    rgb += Chars_Hex.charAt(msb & Mask_F);
+    rgb += Chars_Hex.charAt((b2 >> 4) & Mask_F);
+    rgb += Chars_Hex.charAt(b2 & Mask_F);
+    rgb += Chars_Hex.charAt((lsb >> 4) & Mask_F);
+    rgb += Chars_Hex.charAt(lsb & Mask_F);
+    return rgb;
+}
+function GetColorCache(b64Data) {
+    var arr = new Array();
+    var key = 0;
+    var rgb = null;
+    for (var nB64 = 0, nHex = 0; nB64 < b64Data.length; nB64 += 4, nHex += 3) {
+        rgb = B64ToBin(_b64Decoder[b64Data.charAt(nB64)], _b64Decoder[b64Data.charAt(nB64 + 1)], _b64Decoder[b64Data.charAt(nB64 + 2)], _b64Decoder[b64Data.charAt(nB64 + 3)]);
+        arr[key] = MakeRGB(rgb[0], rgb[1], rgb[2]);
+        key++;
+    }
+    return arr;
+}
+function BuildBitmap() {
+    this.BuildBitmapAndAdjust(0, 0);
+}
+function BuildBitmapAndAdjust(top, left) {
+    if (this.Binary == null) {
+        this.Binary = DecodeB64(this.B64Data);
+
+        var opcode, lower6, spanTotal, span, spanner;
+        var color;
+        for (var index = 0; index < this.Binary.length; index++) {
+            opcode = this.Binary[index] & Mask_Opcode;
+            lower6 = this.Binary[index] & Mask_Lower6;
+            index++;
+            if (opcode == 0) {
+                for (spanner = 0; spanner < lower6; spanner++, index += 3) {
+                    this.TestForNewRow(1, MakeRGB(this.Binary[index], this.Binary[index + 1], this.Binary[index + 2]), top, left);
+                }
+                index--;
+            }
+            else if (!(opcode ^ Mask_Opcode)){       //span background
+                spanTotal = (lower6 << 8) + this.Binary[index]; 
+                span = this.Width - this.NCol;
+                if (span > spanTotal){
+                    this.NCol += spanTotal;
+                }
+                else{
+                    spanTotal -= span;
+                    this.NCol = spanTotal % this.Width;
+                    this.NRow += Math.floor(spanTotal / this.Width) + 1;
+                }
+            }
+            else if (opcode & Mask_Single) {
+            this.TestForNewRow(1, this.ColorCache[(lower6 << 8) + this.Binary[index]], top, left);
+            }
+            else if (opcode & Mask_Span) {
+                color = this.ColorCache[(lower6 << 8) + this.Binary[index]];
+                index++;
+                spanTotal = this.Binary[index];
+                span = this.Width - this.NCol;
+                while (spanTotal > 0) {
+                    this.TestForNewRow(Math.min(span, spanTotal), color, top, left);
+                    spanTotal -= span;
+                    span = this.Width - this.NCol;
+                }
+            }
+        }
+    }
+}
+function TestForNewRow(width, rgb, adjustedTop, adjustedLeft) {
+    var div = this.BkgrndCell.appendChild(_pixDiv.cloneNode(false));
+    div.style.top = this.NRow + adjustedTop + "px";
+    div.style.left = this.NCol + adjustedLeft + "px";
+    div.style.width = width + "px";
+    div.style.borderBottomColor = rgb;
+
+    this.NCol += width;
+    if (this.NCol == this.Width) {
+        this.NCol = 0;
+        this.NRow++;
+    }
+}
+function Display(id) {
+    var table = document.getElementById(id);
+    if (this.Binary == null) {
+        try {
+            this.BuildBitmap();
+            table.style.width = this.Width + 'px';
+            table.style.height = this.Height + 'px';
+            table.appendChild(this.BkgrndCell);
+        }
+        finally {
+            this.Binary = null;
+            this.B64Data = null;
+            this.ColorCache = null;
+        }
+    }
+    else {
+        table.appendChild(this.BkgrndCell);
+    }
+    return table;
+}
+function TImage(width, height, b64Data, b64ColorCache) {
+    try {
+        this.NCol = 0;
+        this.NRow = 0;
+        this.Width = width;
+        this.Height = height;
+        this.BkgrndIndex = 0;
+        this.B64Data = b64Data;
+        this.Binary = null;
+        this.ColorCache = GetColorCache(b64ColorCache);
+        this.BuildBitmap = BuildBitmap;
+        this.BuildBitmapAndAdjust = BuildBitmapAndAdjust;
+        this.TestForNewRow = TestForNewRow;
+        this.Display = Display;
+
+        this.BkgrndCell = CreateElement("div");
+        this.BkgrndCell.style.fontSize = this.BkgrndCell.style.lineHeight = 0;
+        this.BkgrndCell.style.width = width + "px";
+        this.BkgrndCell.style.height = "0px";
+        this.BkgrndCell.style.position = "absolute";
+        this.BkgrndCell.style.borderWidth = "0px 0px " + height + "px";
+        this.BkgrndCell.style.borderStyle = "solid";
+        this.BkgrndCell.style.borderBottomColor = this.ColorCache[this.BkgrndIndex];
+    }
+    finally {
+        b64Data = null;
+        b64ColorCache = null;
+    }
+}
+function CreateElement(tag) {
+    var el = document.createElement(el);
+    try {
+        return el;
+    }
+    finally {
+        el = null;
+    }
+}
+</script></head><body><table border="0" style="font-family:Verdana;font-size:9pt;" cellspacing="0" width="55%"><tr><td>Customer</td><td>:</td><td></td></tr><tr><td>Rig Name</td><td>:</td><td></td></tr><tr><td>Well ID</td><td>:</td><td>PCM slave QA</td></tr><tr><td>Well Name</td><td>:</td><td></td></tr><tr><td>Deck #</td><td>:</td><td>1901</td></tr><tr><td>Description</td><td>:</td><td>CT_2025_03_20 16_16_38</td></tr><tr><td>Field</td><td>:</td><td></td></tr><tr><td>Job No</td><td>:</td><td></td></tr><tr><td>RLL Tool String ID #</td><td>:</td><td></td></tr><tr><td>PM/Pulser Tool String ID #</td><td>:</td><td></td></tr><tr><td>Grease Gun Float Pressure(psi)</td><td>:</td><td>0.00</td></tr><tr><td>Grease Gun Seat Pressure</td><td>:</td><td>0.00</td></tr><tr><td>Comments</td><td>:</td><td></td></tr><tr><td>Engineer</td><td>:</td><td></td></tr><tr><td>Release Core Version</td><td>:</td><td>5000.9.7.3</td></tr><tr><td>Release Core Build</td><td>:</td><td>3004 </td></tr><tr><td>Release Insite Version</td><td>:</td><td>V9.2.0</td></tr><tr><td>Release Insite Build</td><td>:</td><td>41</td></tr></table><br><hr color="#C0C0C0" size="3"><table cellpadding="2" cellspacing="0" width="100%"><th style="color:navy; font-family:Verdana; font-size:small; font-weight:bold; ">PCM Confidence Test<br>16:16:38 - March 20, 2025</th><tr><td><table style="font-family:Verdana;font-size:8pt; font-weight:bold"><tr><td onclick="ToggleSign('information', true);ToggleSign('warning', false);ToggleSign('data', false);ToggleSign('success', false);ToggleSign('retry', false);ToggleSign('error', false);                                ToggleSign('normal', false);ToggleSign('debug', false);ToggleSign('stacktrace', false);ToggleSign('communication', false)" style="cursor:pointer"><span id="idinformation" class="noPrint"></span>    Display Debug Messages
+                    <span id="idwarning" class="noPrint"></span><span id="iddata" class="noPrint"></span><span id="idretry" class="noPrint"></span><span id="idsuccess" class="noPrint"></span><span id="iderror" class="noPrint"></span><span id="idnormal" class="noPrint"></span><span id="iddebug" class="noPrint"></span><span id="idstacktrace" class="noPrint"></span><span id="idcommunication" class="noPrint"></span></td></tr></table><table><tr><td><div id="msg" style="border: 1px solid orange; overflow:auto; width:auto; max-height:800px; display:none; padding:15px"><a class="hide" name="information"><div>----------------------------------</div><div>Processor Name: Intel(R) Core(TM) i5-3550S CPU @ 3.00GHz</div><div>Processor Speed (mhz): 2993</div><div>Operation System : Windows 10 Enterprise</div><div>Insite Version: V9.2.0</div><div>Insite Build: 41</div><div>Sleep Increase Factor: 1.00</div><div>Delay Between Commands (ms) : 1</div><div>Communication Card : USB CIM IO</div><div>Voltage Setting (V): 0</div><div>Surface Card Signal Size: Large</div><div>Process Priority During Communications: Above Normal</div><div>HCIM Bus Arbitration: Disabled</div><div>----------------------------------</div><div>  -- 1 --> ThreadStart<br/>    -- 2 --> Run<br/>      -- 3 --> Run<br/>        -- 4 --> RunInternal<br/>          -- 5 --> ThreadStart_Context<br/>            -- 6 --> DoApplicationDiagnosticTest<br/>              -- 7 --> RunSelectedDiagnosticApplication<br/>                -- 8 --> ExecuteConfidenceTestWithHCIMAsBusMaster<br/>                  -- 9 --> GetInitialUserInputForAllSensors<br/>                    -- 10 --> DisplayPromptToGatherInitialUserInput<br/>                      -- 11 --> ToolSupportConfidenceTest<br/>                        -- 12 --> GetVersionNumber</div><div>Command = 0001 Response = 0346 Delta : 15078.85 ms</div><div>                        -- 12 --> EnableDangerousCommand<br/>                          -- 13 --> GetVersionNumber<br/>                            -- 14 --> GetVersionNumber</div><div>Command = 0001 Response = 0346 Delta : 15.62 ms</div><div>Command = 3101 Response = 0006 Delta : 0.00 ms</div><div>Command = 3101 Response = 0006 Delta : 15.63 ms</div><div>Command = 3101 Response = 0006 Delta : 15.62 ms</div><div>Command = 3101 Response = 0006 Delta : 0.00 ms</div><div>Command = 3101 Response = 0006 Delta : 15.62 ms</div><div>Command = 3101 Response = 0006 Delta : 15.63 ms</div><div>Command = 3101 Response = 0006 Delta : 0.00 ms</div><div>Command = 3101 Response = 0006 Delta : 15.63 ms</div><div>Command = 3101 Response = 0006 Delta : 15.64 ms</div><div>Command = 3101 Response = 0006 Delta : 15.61 ms</div><div>Command = 3101 Response = 0006 Delta : 0.00 ms</div><div>Command = 3101 Response = 0006 Delta : 15.63 ms</div><div>Command = 3101 Response = 0006 Delta : 15.63 ms</div><div>Command = 3101 Response = 0006 Delta : 0.00 ms</div><div>Command = 3101 Response = 0006 Delta : 15.63 ms</div><div>Command = 2901 Response = 0006 Delta : 15.63 ms</div><div>Started PCM Sensor Reset.</div><div>Completed PCM Sensor Reset.</div><div>Completed PCM Current Consumption Test.</div><div>
+<br/>
+<br/>Started PCM Confidence Test.</div><div>Sleep (ms) : 2000</div><div>                  -- 9 --> ExecuteConfidenceTest<br/>                    -- 10 --> PerformInterweaveToolConfidenceTest<br/>                      -- 11 --> StartSensorsConfidenceTest<br/>                        -- 12 --> StartConfidenceTest<br/>                          -- 13 --> PowerOnTool</div><div>Command = 0001 Response = 0346 Delta : 8422.29 ms</div><div>Command = 0001 Response = 0346 Delta : 0.00 ms</div><div>Command = 0001 Response = 0346 Delta : 15.63 ms</div><div>Command = 0001 Response = 0346 Delta : 0.00 ms</div><div>Command = 0001 Response = 0346 Delta : 15.62 ms</div><div>Command = 0091 Response = 0346 Delta : 0.00 ms</div><div>Command = 0101 Response = 0346 Delta : 15.63 ms</div><div>                          -- 13 --> StartConfidenceTest</div><div>Command = 8201 Response = 0006 Delta : 0.00 ms</div><div>Sleep (ms) : 1000</div><div>PCM is a slave tool in this HCIM tool string. PCM will not perform the current comsumption test.</div><div>                      -- 11 --> CheckForSensorConfidenceTestCompletion<br/>                        -- 12 --> PollForConfidenceTestComplete<br/>                          -- 13 --> PollForConfidenceTestComplete</div></a><a class="hide" name="error"><div>No response to Command 0x8301 Delta : 1024.83 ms</div><div>No response to Command 0x8301 Delta : 296.89 ms</div><div>No response to Command 0x8301 Delta : 312.52 ms</div><div>No response to Command 0x8301 Delta : 312.52 ms</div><div>No response to Command 0x8301 Delta : 312.52 ms</div><div>No response to Command 0x8301 Delta : 312.52 ms</div><div>No response to Command 0x8301 Delta : 312.52 ms</div><div>No response to Command 0x8301 Delta : 312.52 ms</div><div>No response to Command 0x8301 Delta : 296.89 ms</div><div>No response to Command 0x8301 Delta : 312.51 ms</div><div>No response to Command 0x8301 Delta : 312.52 ms</div><div>No response to Command 0x8301 Delta : 312.52 ms</div><div>No response to Command 0x8301 Delta : 296.89 ms</div><div>No response to Command 0x8301 Delta : 312.52 ms</div><div>No response to Command 0x8301 Delta : 312.51 ms</div><div>No response to Command 0x8301 Delta : 312.51 ms</div><div>No response to Command 0x8301 Delta : 296.89 ms</div><div>No response to Command 0x8301 Delta : 312.52 ms</div><div>No response to Command 0x8301 Delta : 312.52 ms</div><div>No response to Command 0x8301 Delta : 312.51 ms</div><div>No response to Command 0x8301 Delta : 312.52 ms</div><div>No response to Command 0x8301 Delta : 296.89 ms</div><div>No response to Command 0x8301 Delta : 312.52 ms</div><div>No response to Command 0x8301 Delta : 312.51 ms</div><div>No response to Command 0x8301 Delta : 312.52 ms</div><div>No response to Command 0x8301 Delta : 312.52 ms</div><div>No response to Command 0x8301 Delta : 296.89 ms</div><div>No response to Command 0x8301 Delta : 312.51 ms</div><div>No response to Command 0x8301 Delta : 312.52 ms</div><div>No response to Command 0x8301 Delta : 312.51 ms</div><div>No response to Command 0x8301 Delta : 296.89 ms</div><div>No response to Command 0x8301 Delta : 312.52 ms</div><div>No response to Command 0x8301 Delta : 312.52 ms</div><div>No response to Command 0x8301 Delta : 312.51 ms</div><div>No response to Command 0x8301 Delta : 312.52 ms</div><div>No response to Command 0x8301 Delta : 296.89 ms</div><div>No response to Command 0x8301 Delta : 312.52 ms</div><div>No response to Command 0x8301 Delta : 312.51 ms</div><div>No response to Command 0x8301 Delta : 312.52 ms</div><div>No response to Command 0x8301 Delta : 296.89 ms</div></a><a class="hide" name="information"><div>Command = 8301 Response = 0006 Delta : 5312.76 ms</div><div>Successfully polled to continue with PCM Confidence Test.</div><div>Querying PCM for Confidence Test Data.</div><div>Starting the PCM Confidence Test</div><div>                      -- 11 --> QuerySensorsForConfidenceTestData<br/>                        -- 12 --> QueryToolForConfidenceTestData<br/>                          -- 13 --> GetModuleSN<br/>                            -- 14 --> GetConfiguration</div><div>Command = 1B01 Response = 1000 Delta : 15.62 ms</div><div>                              -- 15 --> PerformSpecialRead<br/>                                -- 16 --> EnableDangerousCommand<br/>                                  -- 17 --> GetVersionNumber<br/>                                    -- 18 --> GetVersionNumber</div><div>Command = 0001 Response = 0346 Delta : 0.00 ms</div><div>Command = 3101 Response = 0006 Delta : 15.63 ms</div><div>Command = 3101 Response = 0006 Delta : 15.62 ms</div><div>Command = 3101 Response = 0006 Delta : 0.00 ms</div><div>Command = 3101 Response = 0006 Delta : 15.62 ms</div><div>Command = 3101 Response = 0006 Delta : 15.63 ms</div><div>Command = 3101 Response = 0006 Delta : 0.00 ms</div><div>Command = 3101 Response = 0006 Delta : 15.62 ms</div><div>Command = 3101 Response = 0006 Delta : 15.63 ms</div><div>Command = 3101 Response = 0006 Delta : 15.63 ms</div><div>Command = 3101 Response = 0006 Delta : 0.00 ms</div><div>Command = 3101 Response = 0006 Delta : 15.65 ms</div><div>Command = 3101 Response = 0006 Delta : 15.60 ms</div><div>Command = 3101 Response = 0006 Delta : 0.00 ms</div><div>Command = 3101 Response = 0006 Delta : 15.63 ms</div><div>Command = 3101 Response = 0006 Delta : 15.63 ms</div><div>                                -- 16 --> SendSpecialReadCommand</div><div>Command = 2301 Response = 0006 Delta : 15.63 ms</div><div>Command = 2601 Response = 41D9 Delta : 0.00 ms</div><div>Command = 1001 Response = 42EF Delta : 15.63 ms</div><div>Command = 0001 Response = 43FF Delta : 0.00 ms</div><div>Command = F001 Response = 440F Delta : 15.63 ms</div><div>Command = 0101 Response = 45FE Delta : 0.00 ms</div><div>Command = 2701 Response = 0006 Delta : 15.63 ms</div><div>Command = 2401 Response = 0001 Delta : 0.00 ms</div><div>Command = 2401 Response = 0030 Delta : 15.63 ms</div><div>Command = 2401 Response = 0031 Delta : 0.00 ms</div><div>Command = 2401 Response = 0034 Delta : 15.63 ms</div><div>Command = 2401 Response = 0033 Delta : 0.00 ms</div><div>Command = 2401 Response = 0032 Delta : 15.63 ms</div><div>Command = 2401 Response = 0030 Delta : 0.00 ms</div><div>Command = 2401 Response = 0035 Delta : 15.63 ms</div><div>Command = 2401 Response = 0039 Delta : 0.00 ms</div><div>Command = 2401 Response = 0031 Delta : 15.63 ms</div><div>Command = 2401 Response = 0000 Delta : 0.00 ms</div><div>Command = 2401 Response = 0000 Delta : 15.63 ms</div><div>Command = 2401 Response = 0031 Delta : 0.00 ms</div><div>Command = 2401 Response = 0034 Delta : 15.63 ms</div><div>Command = 2401 Response = 0033 Delta : 0.00 ms</div><div>Command = 2401 Response = 0032 Delta : 15.63 ms</div><div>Command = 2401 Response = 0030 Delta : 0.00 ms</div><div>Command = 2401 Response = 0035 Delta : 15.63 ms</div><div>Command = 2401 Response = 0039 Delta : 0.00 ms</div><div>Command = 2401 Response = 0031 Delta : 15.63 ms</div><div>Command = 2401 Response = 0000 Delta : 0.00 ms</div><div>Command = 2401 Response = 0000 Delta : 15.63 ms</div><div>Command = 2401 Response = 0067 Delta : 0.00 ms</div><div>Command = 2401 Response = 00CC Delta : 15.62 ms</div><div>Command = 2401 Response = 0010 Delta : 0.00 ms</div><div>Command = 2401 Response = 00E5 Delta : 15.62 ms</div><div>Command = 2401 Response = 0067 Delta : 0.00 ms</div><div>Command = 2401 Response = 00CC Delta : 15.63 ms</div><div>Command = 2401 Response = 0010 Delta : 0.00 ms</div><div>Command = 2401 Response = 00E5 Delta : 15.63 ms</div><div>Command = 2401 Response = 00C3 Delta : 0.00 ms</div><div>Command = 2401 Response = 008F Delta : 15.63 ms</div><div>Command = 2401 Response = 0007 Delta : 0.00 ms</div><div>Command = 2401 Response = 003D Delta : 15.63 ms</div><div>Command = 2401 Response = 00A9 Delta : 0.00 ms</div><div>Command = 2401 Response = 00D5 Delta : 15.63 ms</div><div>Command = 2401 Response = 0070 Delta : 0.00 ms</div><div>Command = 2401 Response = 0044 Delta : 15.62 ms</div><div>Command = 2401 Response = 0000 Delta : 15.63 ms</div><div>Command = 2401 Response = 0B7B Delta : 0.00 ms</div><div>                          -- 13 --> GetBootstrapSWVersionAndValidateVersion<br/>                            -- 14 --> GetBootstrapSWVersion</div><div>Command = 2A01 Response = 1032 Delta : 15.63 ms</div><div>                            -- 14 --> GetVersionNumber<br/>                              -- 15 --> GetVersionNumber</div><div>Command = 0001 Response = 0346 Delta : 0.00 ms</div><div>                          -- 13 --> GetOperatinalSWVersion<br/>                            -- 14 --> GetOperationalSWVersion</div><div>Command = 0001 Response = 0346 Delta : 15.63 ms</div><div>                          -- 13 --> GetRTCPicVersion<br/>                            -- 14 --> GetRTCPicVersion</div><div>Command = C701 Response = 0011 Delta : 31.25 ms</div><div>Sleep (ms) : 5000</div><div>                          -- 13 --> GetConfidenceTestResults<br/>                            -- 14 --> GetConfidenceTestResult</div><div>Command = 8301 Response = 0006 Delta : 5015.87 ms</div><div>                          -- 13 --> GetSVSSAvgAndPeakValues<br/>                            -- 14 --> GetSVSSAverageX</div><div>Command = B301 Response = 00CA Delta : 0.00 ms</div><div>                            -- 14 --> GetSVSSAverageZ</div><div>Command = B401 Response = 019C Delta : 15.63 ms</div><div>                            -- 14 --> GetSVSSPeakX</div><div>Command = B501 Response = 00DC Delta : 0.00 ms</div><div>                            -- 14 --> GetSVSSPeakZ</div><div>Command = B601 Response = 01B1 Delta : 15.63 ms</div><div>                          -- 13 --> GetRawSVSSCountValue<br/>                            -- 14 --> GetRawSVSSXCnts</div><div>Command = BE01 Response = 00A4 Delta : 0.00 ms</div><div>                            -- 14 --> GetRawSVSSZCnts</div><div>Command = BF01 Response = 0146 Delta : 15.63 ms</div><div>                          -- 13 --> GetBatteryBackupVoltages<br/>                            -- 14 --> GetBackupBattery1Voltage</div><div>Command = CF01 Response = 0E1F Delta : 15.62 ms</div><div>Updating Current High Limits</div><div>                          -- 13 --> IsToolBusMaster<br/>                            -- 14 --> GetVersionNumber</div><div>Command = 0001 Response = 0346 Delta : 15.62 ms</div><div>Sleep (ms) : 10</div><div>                          -- 13 --> GetSubbusVoltageUnswitched<br/>                            -- 14 --> GetBusVolts</div><div>Command = CD01 Response = 4EF7 Delta : 15.63 ms</div><div>                          -- 13 --> GetSubbusVoltageSwitched<br/>                            -- 14 --> GetBusVolts</div><div>Command = CD01 Response = 5B9A Delta : 44038.84 ms</div><div>                          -- 13 --> GetGeneratorVoltage<br/>                            -- 14 --> GetGeneratorVolts</div><div>Command = CC01 Response = 71DF Delta : 0.00 ms</div><div>                          -- 13 --> GetGeneratorCurrent<br/>                            -- 14 --> GetGeneratorCurrent</div><div>Command = CE01 Response = 0920 Delta : 15.63 ms</div><div>                          -- 13 --> GetGeneratorRPM<br/>                            -- 14 --> GetRPM</div><div>Command = C001 Response = 0A79 Delta : 0.00 ms</div><div>                          -- 13 --> GetTemperature<br/>                            -- 14 --> GetTemperature</div><div>Command = B101 Response = 091C Delta : 15.63 ms</div><div>Sleep (ms) : 5000</div><div>Sleep (ms) : 2000</div></a></div></td></tr></table></td></tr><tr><td><br></td></tr><tr><td><table width="100%" border="0" cellpadding="0" cellspacing="0"><tr><td width="15%" align="left" class="v9navy"></td><td width="15%" align="left" class="v9navy"></td></tr><tr><td width="40%" align="left" class="v9navy">PCM Information</td></tr><tr></tr><tr></tr><tr></tr><tr><table border="1" cellpadding="0" cellspacing="0" width="100%"><tr><td><table border="0" cellpadding="0" cellspacing="0" width="100%" style="font-family:Verdana; font-size:smaller;"><tr><td width="40%" align="left">Module Serial Number</td><td width="70%" align="left">14320591</td></tr><tr><td width="40%" align="left">Bootstrap Version</td><td width="70%" align="left"><span style="color:;font-weight:normal">0x1032</span></td></tr><tr><td width="40%" align="left">Operational Version</td><td width="70%" align="left">8.38</td></tr><tr><td width="40%" align="left">RTC PIC Version</td><td width="70%" align="left">1.70</td></tr></table></td></tr></table></tr></table></td></tr><tr><td><br></td></tr><tr><td><table width="100%" border="0" cellpadding="0" cellspacing="0"><tr><td width="15%" align="left" class="v9navy"></td><td width="15%" align="left" class="v9navy"></td></tr><tr><td width="40%" align="left" class="v9navy">Confidence Tests</td></tr><tr></tr><tr></tr><tr></tr><tr><table border="1" cellpadding="0" cellspacing="0" width="100%"><tr><td><table border="0" cellpadding="0" cellspacing="0" width="100%" style="font-family:Verdana; font-size:smaller;"><tr><td width="40%" align="left">Program Verification</td><td width="70%" align="left"><span style="color:;font-weight:normal">Pass</span></td></tr><tr><td width="40%" align="left">ScratchPad Ram Test</td><td width="70%" align="left"><span style="color:;font-weight:normal">Pass</span></td></tr><tr><td width="40%" align="left">NOVRAM Test</td><td width="70%" align="left"><span style="color:;font-weight:normal">Pass</span></td></tr><tr><td width="40%" align="left">Mass Storage Test</td><td width="70%" align="left"><span style="color:;font-weight:normal">Pass</span></td></tr></table></td></tr></table></tr></table></td></tr><tr><td><br></td></tr><tr><td><table width="100%" border="0" cellpadding="0" cellspacing="0"><tr><td width="40%" align="left" class="v9navy"></td><td width="12%" align="left" class="v9navy">Units</td><td width="12%" align="left" class="v9navy">Low Limit</td><td width="12%" align="left" class="v9navy">Actual Reading</td><td width="12%" align="left" class="v9navy">High Limit</td></tr><tr><td width="40%" align="left" class="v9navy">PCM SVSS Data</td></tr><tr></tr><tr></tr><tr></tr><tr><table border="1" cellpadding="0" cellspacing="0" width="100%"><tr><td><table border="0" cellpadding="0" cellspacing="0" width="100%" style="font-family:Verdana; font-size:smaller;"><tr><td width="40%" height="16">SVSS Average X</td><td width="12%" height="16">g</td><td width="12%" height="16">0.00</td><td width="12%" height="16">0.00</td><td width="12%" height="16">3.00</td></tr><tr><td width="40%" height="16">SVSS Average Z</td><td width="12%" height="16">g</td><td width="12%" height="16">0.00</td><td width="12%" height="16">0.00</td><td width="12%" height="16">3.00</td></tr><tr><td width="40%" height="16">SVSS Peak X</td><td width="12%" height="16">g</td><td width="12%" height="16">0.00</td><td width="12%" height="16">0.22</td><td width="12%" height="16">30.00</td></tr><tr><td width="40%" height="16">SVSS Peak Z</td><td width="12%" height="16">g</td><td width="12%" height="16">0.00</td><td width="12%" height="16">0.43</td><td width="12%" height="16">30.00</td></tr></table></td></tr></table></tr></table></td></tr><tr><td><br></td></tr><tr><td><table width="100%" border="0" cellpadding="0" cellspacing="0"><tr><td width="15%" align="left" class="v9navy"></td><td width="15%" align="left" class="v9navy"></td></tr><tr><td width="40%" align="left" class="v9navy"></td></tr><tr></tr><tr></tr><tr></tr><tr><table border="1" cellpadding="0" cellspacing="0" width="100%"><tr><td><table border="0" cellpadding="0" cellspacing="0" width="100%" style="font-family:Verdana; font-size:smaller;"><tr><td width="40%" align="left">Raw SVSS X Counts</td><td width="70%" align="left">164.00</td></tr><tr><td width="40%" align="left">Raw SVSS Z Counts</td><td width="70%" align="left">326.00</td></tr></table></td></tr></table></tr></table></td></tr><tr></tr><tr><td><br></td></tr><tr><td><table width="100%" border="0" cellpadding="0" cellspacing="0"><tr><td width="40%" align="left" class="v9navy"></td><td width="12%" align="left" class="v9navy"></td></tr><tr><td width="40%" align="left" class="v9navy">PCM Module Current &amp; Voltage Measurements By Internal A/D</td></tr><tr></tr><tr></tr><tr></tr><tr><table border="1" cellpadding="0" cellspacing="0" width="100%"><tr><td><table border="0" cellpadding="0" cellspacing="0" width="100%" style="font-family:Verdana; font-size:smaller;"><tr><td width="40%" height="16">Backup Battery (Combined) Voltage</td><td width="12%" height="16">V</td><td width="12%" height="16">3.40</td><td width="12%" height="16">3.62</td><td width="12%" height="16">4.00</td></tr><tr><td width="40%" height="16">Subbus Voltage (Switched)</td><td width="12%" height="16">V</td><td width="12%" height="16">19.00</td><td width="12%" height="16">23.45</td><td width="12%" height="16">25.00</td></tr><tr><td width="40%" height="16">Subbus Voltage (Unswitched)</td><td width="12%" height="16">V</td><td width="12%" height="16">19.00</td><td width="12%" height="16">20.22</td><td width="12%" height="16">25.00</td></tr></table></td></tr></table></tr></table></td></tr><tr><td><br></td></tr><tr><td><table width="100%" border="0" cellpadding="0" cellspacing="0"><tr><td width="40%" align="left" class="v9navy"></td><td width="12%" align="left" class="v9navy"></td></tr><tr><td width="40%" align="left" class="v9navy">PCM Temperature</td></tr><tr></tr><tr></tr><tr></tr><tr><table border="1" cellpadding="0" cellspacing="0" width="100%"><tr><td><table border="0" cellpadding="0" cellspacing="0" width="100%" style="font-family:Verdana; font-size:smaller;"><tr><td width="40%" height="16">Temperature</td><td width="12%" height="16">C</td><td width="12%" height="16">-45.00</td><td width="12%" height="16">23.32</td><td width="12%" height="16">65.00</td></tr></table></td></tr></table></tr></table></td></tr><tr><td><br></td></tr><tr><td><table width="100%" border="0" cellpadding="0" cellspacing="0"><tr><td width="15%" align="left" class="v9navy"></td><td width="15%" align="left" class="v9navy"></td></tr><tr><td width="40%" align="left" class="v9navy"></td></tr><tr></tr><tr></tr><tr></tr><tr><table border="1" cellpadding="0" cellspacing="0" width="100%"><tr><td><table border="0" cellpadding="0" cellspacing="0" width="100%" style="font-family:Verdana; font-size:smaller;"><tr><td width="40%" align="left">Regulated Generator Voltage</td><td width="12%"></td><td width="12%"></td><td width="12%" align="left">29.15</td><td width="12%"></td></tr><tr><td width="40%" align="left">Generator RPM</td><td width="12%"></td><td width="12%"></td><td width="12%" align="left">2681.00</td><td width="12%"></td></tr></table></td></tr></table></tr></table></td></tr><tr><td><br></td></tr><tr><td><table width="100%" border="0" cellpadding="0" cellspacing="0"><tr><td width="40%" align="left" class="v9navy"></td><td width="12%" align="left" class="v9navy"></td></tr><tr><td width="40%" align="left" class="v9navy"></td><td width="12%" align="left" class="v9navy"></td></tr><tr></tr><tr></tr><tr></tr><tr><table border="1" cellpadding="0" cellspacing="0" width="100%"><tr><td><table border="0" cellpadding="0" cellspacing="0" width="100%" style="font-family:Verdana; font-size:smaller;"><tr><td width="40%" height="16">GEN CURRENT (inc PCDC )</td><td width="12%" height="16">mA</td><td width="12%" height="16">41.00</td><td width="12%" height="16">73.00</td><td width="12%" height="16">151.00</td></tr></table></td></tr></table></tr></table></td></tr><tr></tr><tr></tr></table></body></html>
