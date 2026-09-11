@@ -81,21 +81,23 @@
     const measurements = cells
       .map((cell, index) => ({ index, cell }))
       .filter(({ cell }) => /^(?:phase\s+shift|attenuation|ut\s+ps|ut\s+atten|lt\s+ps|lt\s+atten)/i.test(cell));
-    return measurements.length >= 2 ? { measurements, multi: true } : null;
+    return measurements.length >= 2 ? { measurements, multi: true, airHang: measurements.some(({ cell }) => /^ut\s+ps|^lt\s+ps/i.test(cell)) } : null;
   }
 
-  function lowGainPrefix(table) {
-    const labels = Array.from(table.ownerDocument.querySelectorAll("td.v9navy"))
+  function measurementPrefix(table, metric) {
+    const labels = Array.from(table.ownerDocument.querySelectorAll("td, th"))
       .filter((cell) => cell.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING)
       .map(textOf);
-    const section = labels.find((label) => /^low\s+gain\s+measurements$/i.test(label));
-    const frequency = labels.find((label) => /^250\s*kHz\s+transmitter\s+frequency$/i.test(label));
-    return [section ? "LowGain" : "", frequency ? "250kHz" : ""].filter(Boolean);
+    const section = labels.slice().reverse().find((label) => /^(low|high)\s+gain\s+measurements$/i.test(label));
+    const frequencyValue = labels.slice().reverse().find((label) => /^(?:250|500)\s*kHz\s+transmitter\s+frequency$|^2\s*MHz\s+transmitter\s+frequency$/i.test(label));
+    const sectionName = section ? section.replace(/\s+measurements$/i, "").replace(/\s+/g, "") : "";
+    const prefix = [metric.airHang ? "AirHang" : "", sectionName, frequencyValue ? frequencyValue.replace(/\s+transmitter\s+frequency$/i, "").replace(/\s+/g, "") : ""];
+    return prefix.filter(Boolean);
   }
 
   function extractMultiMetricTable(table, parsed, metric, row) {
     if (!metric || !parsed.length || parsed.some((cells) => cells.length <= Math.max(...metric.measurements.map(({ index }) => index)))) return false;
-    const prefix = lowGainPrefix(table);
+    const prefix = measurementPrefix(table, metric);
     for (const cells of parsed) {
       const label = cells[0].replace(/[:：]$/, "");
       if (!isUseful(label)) continue;

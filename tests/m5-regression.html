@@ -2,7 +2,7 @@
 <meta charset="utf-8">
 <title>FlattenCT M5 parser regression</title>
 <pre id="output">Running...</pre>
-<iframe id="app" src="../index.html" hidden></iframe>
+<iframe id="app" src="../index.html?v=10" hidden></iframe>
 <script>
   const output = document.getElementById("output");
   const app = document.getElementById("app");
@@ -34,6 +34,27 @@
       if (lowGain["LowGain_250kHz_8-inch LT_Phase Shift(deg)"] !== "5.84" ||
           lowGain["LowGain_250kHz_8-inch LT_Attenuation(dB)"] !== "10.22") {
         throw new Error("Low Gain two-measurement row was not split into Phase Shift and Attenuation");
+      }
+      const gainRows = ["8-inch LT", "8-inch UT", "8-inch Comp", ...Array.from({ length: 6 }, (_, index) => `${16 + index * 8}-inch LT`), ...Array.from({ length: 8 }, (_, index) => `${16 + index * 8}-inch UT`)].slice(0, 17);
+      const airRows = ["8", "16", "24", "32", "40", "48", "56"];
+      const gainTables = ["Low Gain", "High Gain"].flatMap((gain) => ["250", "500", "2MHz"].map((frequency) => `
+        <table><tr><td class="v9navy">${gain} Measurements</td></tr><tr><td class="v9navy">${frequency === "2MHz" ? "2 MHz" : frequency + " kHz"} Transmitter Frequency</td></tr>
+        <tr><td class="v9navy">Spacing</td><td class="v9navy">Low Limit</td><td class="v9navy">Phase Shift(deg)</td><td class="v9navy">High Limit</td><td class="v9navy">Low Limit</td><td class="v9navy">Attenuation(dB)</td><td class="v9navy">High Limit</td></tr>
+        <tr><td><table>${gainRows.map((spacing, index) => `<tr><td>${spacing}</td><td></td><td>${index}.1</td><td></td><td></td><td>${index}.2</td><td></td></tr>`).join("")}</table></td></tr></table>`));
+      const airTables = ["Low Gain", "High Gain"].flatMap((gain) => ["250", "500", "2MHz"].map((frequency) => `
+        <table><tr><td>${gain} Measurements</td></tr><tr><td>${frequency === "2MHz" ? "2 MHz" : frequency + " kHz"} Transmitter Frequency</td></tr>
+        <tr><td>Spacing(in.)</td><td>UT PS(deg)</td><td>UT Atten.(dB)</td><td>LT PS(deg)</td><td>LT Atten.(dB)</td></tr>
+        <tr><td><table>${airRows.map((spacing, index) => `<tr><td>${spacing}</td><td>${index}.1</td><td>${index}.2</td><td>${index}.3</td><td>${index}.4</td></tr>`).join("")}</table></td></tr></table>`));
+      const generated = app.contentWindow.FlattenCT.parseHtml("m5-all-sections.html", gainTables.join("") + airTables.join(""));
+      const gainColumns = Object.keys(generated).filter((key) => /^(LowGain|HighGain)_/.test(key));
+      const airColumns = Object.keys(generated).filter((key) => /^AirHang_/.test(key));
+      if (gainColumns.length !== 204 || airColumns.length !== 168) {
+        throw new Error(`Expected 204 gain and 168 Air-Hang columns, got ${gainColumns.length} and ${airColumns.length}`);
+      }
+      if (generated["LowGain_250kHz_8-inch LT_Phase Shift(deg)"] !== "0.1" ||
+          generated["LowGain_250kHz_8-inch LT_Attenuation(dB)"] !== "0.2" ||
+          generated["AirHang_HighGain_2MHz_56_LT Atten.(dB)"] !== "6.4") {
+        throw new Error("Gain or Air-Hang frequency/spacing mapping is incorrect");
       }
       if (Object.keys(row).some((key) => /_(Low|High)Limit$/i.test(key))) throw new Error("Limit columns were exported");
       output.textContent = "PASS: M5 nested Actual Reading values parsed, including blank-unit rows.";

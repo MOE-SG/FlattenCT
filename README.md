@@ -14,6 +14,8 @@ Nested M5 diagnostics tables use the same outer-header matching and tolerate par
 
 M5 Low Gain tables with two measurements in one row split each row into separate fields, such as `LowGain_250kHz_8-inch LT_Phase Shift(deg)` and `LowGain_250kHz_8-inch LT_Attenuation(dB)`.
 
+For the full M5 layout, the six Low/High Gain tables flatten to 204 Phase/Attenuation fields (17 spacing/type rows × 2 measurements × 6 tables). The six corresponding Air-Hang tables flatten to 168 UT/LT Phase/Attenuation fields (7 spacings × 4 measurements × 6 tables).
+
 No files leave the browser. The included `.nojekyll` marker makes the site compatible with static GitHub Pages hosting.
 
 ## CSV safety
