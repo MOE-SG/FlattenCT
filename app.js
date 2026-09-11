@@ -57,14 +57,47 @@
       .filter((value) => value !== "");
   }
 
-  function extractTable(table, row) {
+  function metricHeader(cells) {
+    if (cells.length < 2) return null;
+    const actualIndex = cells.findIndex((cell) => /^actual\s+reading$/i.test(cell));
+    const unitsIndex = cells.findIndex((cell) => /^units?$/i.test(cell));
+    return actualIndex > 0 && unitsIndex >= 0 ? { actualIndex, unitsIndex } : null;
+  }
+
+  function precedingMetricCategory(table) {
+    const categories = Array.from(table.ownerDocument.querySelectorAll("td.v9navy"))
+      .filter((cell) => cell.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING)
+      .map(textOf)
+      .filter((value) => value && !/^(units?|low limit|actual reading|high limit)$/i.test(value));
+    return categories[categories.length - 1] || "";
+  }
+
+  function extractMetricTable(table, parsed, metric, row) {
+    if (!metric || !parsed.length || parsed.some((cells) => cells.length < 5)) return false;
+    const category = precedingMetricCategory(table);
+    for (const cells of parsed) {
+      const label = cells[0].replace(/[:：]$/, "");
+      const unit = cells[metric.unitsIndex] || "";
+      const actual = cells[metric.actualIndex] || "";
+      if (!isUseful(label) || !isUseful(actual)) continue;
+      const parameter = keyPart(label).replace(/\s+/g, "");
+      const key = `${pathKey([category, parameter])}${unit ? ` (${keyPart(unit)})` : ""}`;
+      addValue(row, key, actual);
+    }
+    return true;
+  }
+
+  function extractTable(table, row, currentMetric) {
     const rows = Array.from(table.querySelectorAll(":scope > tbody > tr, :scope > tr"));
-    if (!rows.length) return;
+    if (!rows.length) return currentMetric;
     const caption = table.querySelector(":scope > caption");
     const prefix = [...headingPath(table), caption ? textOf(caption) : ""].filter(Boolean);
     const parsed = rows.map(rowCells).filter((cells) => cells.length);
-    if (!parsed.length) return;
+    if (!parsed.length) return currentMetric;
     const header = parsed[0];
+    const metric = metricHeader(header);
+    if (metric) return metric;
+    if (extractMetricTable(table, parsed, currentMetric, row)) return currentMetric;
     const looksLikeHeader = header.length > 1 && header.some((cell) => /actual|value|reading|result|limit|unit|status/i.test(cell));
     const start = looksLikeHeader ? 1 : 0;
     for (let index = start; index < parsed.length; index += 1) {
@@ -83,6 +116,7 @@
         addValue(row, pathKey([...prefix, label]), cells.slice(1).join(" "));
       }
     }
+    return currentMetric;
   }
 
   function extractTextPairs(document, row) {
@@ -99,13 +133,18 @@
     const document = new DOMParser().parseFromString(html, "text/html");
     const row = { SourceFile: name };
     if (document.querySelector("parsererror")) throw new Error("The browser could not parse this HTML.");
-    document.querySelectorAll("table").forEach((table) => extractTable(table, row));
+    let currentMetric = null;
+    document.querySelectorAll("table").forEach((table) => {
+      currentMetric = extractTable(table, row, currentMetric);
+    });
     extractTextPairs(document, row);
     const title = clean(document.title);
     if (title) addValue(row, "ReportTitle", title);
     if (Object.keys(row).length === 1) throw new Error("No readable fields were found.");
     return row;
   }
+
+  window.FlattenCT = { parseHtml };
 
   function renderFiles() {
     $("file-count").textContent = `${state.files.length} file${state.files.length === 1 ? "" : "s"}`;

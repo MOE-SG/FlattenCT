@@ -1,0 +1,26 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>FlattenCT parser regression</title>
+<pre id="output">Running...</pre>
+<iframe id="app" src="../index.html" hidden></iframe>
+<script>
+  const output = document.getElementById("output");
+  const app = document.getElementById("app");
+  const report = "../14204570_8%20inch_0100_Confidence%20Test_EWR-SOLAR_31_03_2025%2008_54_27%20AM.html";
+
+  app.addEventListener("load", async () => {
+    try {
+      const html = await fetch(report).then((response) => response.text());
+      const row = app.contentWindow.FlattenCT.parseHtml("target.html", html);
+      const expected = "21.24";
+      const actual = row["2MHz_ReceiverTemperature (C)"];
+      const unexpected = Object.keys(row).filter((key) => /2MHz_ReceiverTemperature.*(?:Low|High|Actual|Units)/i.test(key));
+      if (actual !== expected) throw new Error(`Expected 2MHz_ReceiverTemperature (C)=${expected}, got ${actual || "(missing)"}`);
+      if (unexpected.length) throw new Error(`Unexpected limit columns: ${unexpected.join(", ")}`);
+      output.textContent = "PASS: 2MHz_ReceiverTemperature (C)=21.24; no limit columns exported.";
+    } catch (error) {
+      output.textContent = `FAIL: ${error.message}`;
+      document.body.dataset.testFailed = "true";
+    }
+  });
+</script>

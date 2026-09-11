@@ -70,6 +70,7 @@
         <li>Each selected file produces exactly one CSV row. Columns are the union of fields found across all files.</li>
         <li>Visible table labels, parameter rows, report metadata, and text lines in <code>Name: value</code> form are collected.</li>
         <li>Nested headings and table captions prefix fields with an underscore path (for example <code>Power_Actual</code>).</li>
+        <li>Confidence-test measurement tables export only <code>Actual Reading</code>; category, parameter, and unit are combined (for example <code>2MHz_ReceiverTemperature (C)</code>).</li>
         <li>Repeated fields are retained in source order and joined with <code> | </code>; blank values do not overwrite a populated value.</li>
         <li>Files are read locally in your browser and are never uploaded.</li>
       </ul>
