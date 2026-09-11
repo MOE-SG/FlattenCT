@@ -23,6 +23,18 @@
       for (const [key, value] of Object.entries(expected)) {
         if (row[key] !== value) throw new Error(`Expected ${key}=${value}, got ${row[key] ?? "(missing)"}`);
       }
+      const lowGainFixture = `
+        <table>
+          <tr><td class="v9navy">Low Gain Measurements</td></tr>
+          <tr><td class="v9navy">250 kHz Transmitter Frequency</td></tr>
+          <tr><td class="v9navy">Spacing</td><td class="v9navy">Low Limit</td><td class="v9navy">Phase Shift(deg)</td><td class="v9navy">High Limit</td><td class="v9navy">Low Limit</td><td class="v9navy">Attenuation(dB)</td><td class="v9navy">High Limit</td></tr>
+          <tr><td><table><tr><td>8-inch LT</td><td></td><td>5.84</td><td></td><td></td><td>10.22</td><td></td></tr></table></td></tr>
+        </table>`;
+      const lowGain = app.contentWindow.FlattenCT.parseHtml("low-gain.html", lowGainFixture);
+      if (lowGain["LowGain_250kHz_8-inch LT_Phase Shift(deg)"] !== "5.84" ||
+          lowGain["LowGain_250kHz_8-inch LT_Attenuation(dB)"] !== "10.22") {
+        throw new Error("Low Gain two-measurement row was not split into Phase Shift and Attenuation");
+      }
       if (Object.keys(row).some((key) => /_(Low|High)Limit$/i.test(key))) throw new Error("Limit columns were exported");
       output.textContent = "PASS: M5 nested Actual Reading values parsed, including blank-unit rows.";
     } catch (error) {

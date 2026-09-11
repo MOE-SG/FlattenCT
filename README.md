@@ -12,6 +12,8 @@ Nested ECMB diagnostics tables are matched to their outer `Actual Reading` heade
 
 Nested M5 diagnostics tables use the same outer-header matching and tolerate parameters with blank units. Their actual readings, including status suffixes such as `H`, `L`, and `NaN Failed`, are retained without exporting limits. The focused regression page at `tests/m5-regression.html` validates this layout.
 
+M5 Low Gain tables with two measurements in one row split each row into separate fields, such as `LowGain_250kHz_8-inch LT_Phase Shift(deg)` and `LowGain_250kHz_8-inch LT_Attenuation(dB)`.
+
 No files leave the browser. The included `.nojekyll` marker makes the site compatible with static GitHub Pages hosting.
 
 ## CSV safety

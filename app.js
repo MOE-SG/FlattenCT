@@ -57,11 +57,11 @@
     return headings.slice(-3);
   }
 
-  function rowCells(tr) {
+  function rowCells(tr, preserveEmpty = false) {
     return Array.from(tr.children)
       .filter((cell) => /^(TD|TH)$/i.test(cell.tagName))
       .map(textOf)
-      .filter((value) => value !== "");
+      .filter((value) => preserveEmpty || value !== "");
   }
 
   function metricHeader(cells) {
@@ -75,6 +75,36 @@
       return { actualIndex: actualIndex + offset, unitsIndex: unitsIndex + offset };
     }
     return testMeasurementIndex > 0 ? { actualIndex: testMeasurementIndex, testMeasurement: true } : null;
+  }
+
+  function multiMetricHeader(cells) {
+    const measurements = cells
+      .map((cell, index) => ({ index, cell }))
+      .filter(({ cell }) => /^(?:phase\s+shift|attenuation|ut\s+ps|ut\s+atten|lt\s+ps|lt\s+atten)/i.test(cell));
+    return measurements.length >= 2 ? { measurements, multi: true } : null;
+  }
+
+  function lowGainPrefix(table) {
+    const labels = Array.from(table.ownerDocument.querySelectorAll("td.v9navy"))
+      .filter((cell) => cell.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING)
+      .map(textOf);
+    const section = labels.find((label) => /^low\s+gain\s+measurements$/i.test(label));
+    const frequency = labels.find((label) => /^250\s*kHz\s+transmitter\s+frequency$/i.test(label));
+    return [section ? "LowGain" : "", frequency ? "250kHz" : ""].filter(Boolean);
+  }
+
+  function extractMultiMetricTable(table, parsed, metric, row) {
+    if (!metric || !parsed.length || parsed.some((cells) => cells.length <= Math.max(...metric.measurements.map(({ index }) => index)))) return false;
+    const prefix = lowGainPrefix(table);
+    for (const cells of parsed) {
+      const label = cells[0].replace(/[:：]$/, "");
+      if (!isUseful(label)) continue;
+      for (const measurement of metric.measurements) {
+        const value = cells[measurement.index] || "";
+        if (isUseful(value)) addValue(row, pathKey([...prefix, label, measurement.cell]), value);
+      }
+    }
+    return true;
   }
 
   function precedingMetricCategory(table) {
@@ -114,9 +144,13 @@
     if (!rows.length) return currentMetric;
     const caption = table.querySelector(":scope > caption");
     const prefix = [...headingPath(table), caption ? textOf(caption) : ""].filter(Boolean);
-    const parsed = rows.map(rowCells).filter((cells) => cells.length);
+    const rawParsed = rows.map((tr) => rowCells(tr, true)).filter((cells) => cells.length);
+    const parsed = rawParsed.map((cells) => cells.filter((value) => value !== ""));
     if (!parsed.length) return currentMetric;
     const header = parsed[0];
+    const multiMetric = rawParsed.map(multiMetricHeader).find(Boolean);
+    if (multiMetric) return multiMetric;
+    if (extractMultiMetricTable(table, rawParsed, currentMetric?.multi ? currentMetric : null, row)) return currentMetric;
     const metric = parsed.map(metricHeader).find(Boolean);
     if (metric?.testMeasurement) {
       extractTestMeasurementTable(parsed, metric, row);
