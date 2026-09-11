@@ -1,0 +1,45 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>FlattenCT AGR parser regression</title>
+<pre id="output">Running...</pre>
+<iframe id="app" src="../index.html?v=12" hidden></iframe>
+<script>
+  const output = document.getElementById("output");
+  const app = document.getElementById("app");
+  const report = "../10505643_0100_Confidence%20Test_AGR_07_17_2025%2008_34_44%20AM.html";
+
+  app.addEventListener("load", async () => {
+    let row;
+    try {
+      const html = await fetch(report).then((response) => response.text());
+      row = app.contentWindow.FlattenCT.parseHtml("agr.html", html);
+      const expected = {
+        "Gamma Calibration Factors_A": "0.10000",
+        "Gamma Calibration Factors_B": "0.10000",
+        "High Voltage Setting_A": "1116.1",
+        "High Voltage Setting_B": "1128.0",
+        "DSP RPM Data_PIC": "112",
+        "DSP RPM Data_Min": "-300.0",
+        "DSP RPM Data_Avg": "0.0",
+        "DSP RPM Data_Max": "307.0",
+        "DSP RPM Data_StickSlip": "65535",
+        "DDS2 Base Correction Data_Accel_X_25G (Cnts)": "0.00",
+        "DDS2 Base Correction Data_Accel_Y_25G (Cnts)": "-16.00",
+        "DDS2 Base Correction Data_Accel_Z_200G (Cnts)": "-6.00",
+        "DDS2 Vibration Data: 25 G Sensor_Accel_X_Average (g)": "0.02",
+        "DDS2 Vibration Data: 200 G Sensor_Accel_Z_Peak (g)": "14.40",
+        "DDS2 Burst Header_Channels Enabled": "XL XH YL YH ZL ZH Ang"
+      };
+      for (const [key, value] of Object.entries(expected)) {
+        if (row[key] !== value) throw new Error(`Expected ${key}=${value}, got ${row[key] ?? "(missing)"}`);
+      }
+      if (Object.keys(row).filter((key) => /^DDS2 Base Correction Data_/.test(key)).length !== 6) {
+        throw new Error("DDS2 base correction matrix did not flatten to six fields");
+      }
+      output.textContent = "PASS: AGR calibration, RPM, DDS2 matrices, and burst channels parsed.";
+    } catch (error) {
+      output.textContent = `FAIL: ${error.message}`;
+      document.body.dataset.testFailed = "true";
+    }
+  });
+</script>

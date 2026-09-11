@@ -194,10 +194,91 @@
     });
   }
 
+  const agrSections = [
+    { match: /^DSP RPM Data$/i, headers: ["PIC", "Min", "Avg", "Max", "StickSlip"] },
+    { match: /^DDS2 Base Correction Data$/i, headers: ["Accel", "25G (Cnts)", "200G (Cnts)"] },
+    { match: /^DDS2 Instantaneous Vibration Measurement$/i, headers: ["Accel", "25G (Cnts)", "200G (Cnts)"] },
+    { match: /^DDS2 Vibration Data: 25 G Sensor$/i, headers: ["Accel", "Average (g)", "Shock (g)", "Peak (g)"] },
+    { match: /^DDS2 Vibration Data: 200 G Sensor$/i, headers: ["Accel", "Average (g)", "Shock (g)", "Peak (g)"] },
+    { match: /^DDS2 Burst Header$/i, headers: ["Version", "Peak Th(g)", "Shock Th(g)", "Avg Th(g)", "Ang Th", "Channels Enabled"] },
+    { match: /^Trigger Source$/i, headers: ["Trigger Source", "Max Peak(g)", "Max Shock(g)", "Max Avg(g)", "Max Ang(g)"] },
+    { match: /^Scale Factors$/i, headers: ["XL", "XH", "YL", "YH", "ZL", "ZH"] },
+    { match: /^DDS2 Normalization Factors: 25 G Sensor$/i, headers: ["Accel", "Average (g)", "Shock (g)", "Peak (g)"] },
+    { match: /^DDS2 Normalization Factors: 200 G Sensor$/i, headers: ["Accel", "Average (g)", "Shock (g)", "Peak (g)"] }
+  ];
+
+  function agrSection(table) {
+    return agrSections.find((section) => Array.from(table.querySelectorAll("td, th"))
+      .some((cell) => section.match.test(textOf(cell)))) || null;
+  }
+
+  function agrDataRows(table, width) {
+    return [table, ...Array.from(table.querySelectorAll("table"))]
+      .flatMap((nested) => Array.from(nested.querySelectorAll(":scope > tbody > tr, :scope > tr")))
+      .map((tr) => rowCells(tr, true))
+      .filter((cells) => cells.length >= width && cells.some(isUseful));
+  }
+
+  function extractAgrMatrix(table, section, sectionName, row) {
+    const rows = agrDataRows(table, section.headers.length)
+      .filter((cells) => !section.headers.every((header, index) => cells[index] && new RegExp(`^${header.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i").test(cells[index])));
+    if (!rows.length) return false;
+    for (const cells of rows) {
+      const hasLabel = section.headers.length > 1 && !/^-?\d+(?:\.\d+)?$/.test(cells[0]);
+      const label = hasLabel ? cells[0] : "";
+      const values = hasLabel ? cells.slice(1) : cells;
+      section.headers.slice(hasLabel ? 1 : 0).forEach((header, index) => {
+        const value = values[index] || "";
+        if (!isUseful(value)) return;
+        const rowHeader = hasLabel && /^Accel$/i.test(section.headers[0]) ? section.headers[0] : "";
+        const key = pathKey([sectionName, rowHeader, label, header]);
+        addValue(row, key, value);
+      });
+    }
+    return true;
+  }
+
+  function extractAgrCalibration(table, row) {
+    const rows = Array.from(table.querySelectorAll("tr"))
+      .filter((tr) => tr.closest("table") === table)
+      .map((tr) => rowCells(tr, true))
+      .filter((cells) => cells.length >= 2);
+    for (const cells of rows) {
+      const label = cells[0];
+      if (!/^Gamma Calibration Factors$|^High Voltage Setting$/i.test(label)) continue;
+      cells.slice(1).forEach((cell) => {
+        const match = cell.match(/^([^:：]+)\s*[:：]\s*(.+)$/);
+        if (!match) return;
+        const value = label === "High Voltage Setting" ? match[2].replace(/\s+V$/i, "") : match[2];
+        addValue(row, pathKey([label, match[1]]), value);
+      });
+    }
+    return rows.some((cells) => /^Gamma Calibration Factors$|^High Voltage Setting$/i.test(cells[0]));
+  }
+
+  function extractAgr(document, row) {
+    if (!/AGR\/DDS2 Confidence Test/i.test(textOf(document.body))) return false;
+    let pendingSection = null;
+    document.querySelectorAll("table").forEach((table) => {
+      if (extractAgrCalibration(table, row)) return;
+      const section = agrSection(table);
+      if (section) pendingSection = { section, name: textOf(Array.from(table.querySelectorAll("td, th")).find((cell) => section.match.test(textOf(cell)))) };
+      if (pendingSection && extractAgrMatrix(table, pendingSection.section, pendingSection.name, row)) pendingSection = null;
+    });
+    return true;
+  }
+
   function parseHtml(name, html) {
     const document = new DOMParser().parseFromString(html, "text/html");
     const row = { SourceFile: name };
     if (document.querySelector("parsererror")) throw new Error("The browser could not parse this HTML.");
+    if (extractAgr(document, row)) {
+      extractTextPairs(document, row);
+      const title = clean(document.title);
+      if (title) addValue(row, "ReportTitle", title);
+      if (Object.keys(row).length === 1) throw new Error("No readable fields were found.");
+      return row;
+    }
     let currentMetric = null;
     document.querySelectorAll("table").forEach((table) => {
       currentMetric = extractTable(table, row, currentMetric);
