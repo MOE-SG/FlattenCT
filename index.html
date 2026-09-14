@@ -3,8 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Flatten confidence test HTML reports into one CSV row per report.">
-  <title>FlattenCT</title>
+  <title>FlattenCT - HTML to CSV</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -26,6 +25,14 @@
         </div>
         <span class="file-count" id="file-count">0 files</span>
       </div>
+
+      <div class="test-section">
+        <h3>Test the App</h3>
+        <p>Download a test report file to try out the metadata extraction feature:</p>
+        <a href="https://raw.githubusercontent.com/MOE-SG/FlattenCT/main/test-report.html" download="test-report.html" class="button">Download Test Report</a>
+        <p style="font-size: 13px; color: #526078; margin-top: 8px;">This test file has no product name or 8-digit key in the filename, so you'll be prompted to provide them.</p>
+      </div>
+
       <label class="drop-zone" id="drop-zone" for="file-input">
         <input id="file-input" type="file" accept=".html,.htm,text/html" multiple>
         <span class="upload-icon" aria-hidden="true">↑</span>
@@ -77,6 +84,7 @@
         <li>AGR/DDS2 matrices are flattened by section, row, and measurement header; Burst Header channels stay together.</li>
         <li>Repeated fields are retained in source order and joined with <code> | </code>; blank values do not overwrite a populated value.</li>
         <li>Files are read locally in your browser and are never uploaded.</li>
+        <li>Missing 8-digit key or product name in filename will prompt user to provide them for proper output file naming (yymmdd-hhmmss-productname-flattenah.csv).</li>
       </ul>
     </details>
   </main>
