@@ -20,6 +20,10 @@ AGR/DDS2 reports use section-aware matrix parsing. Calibration A/B values, DSP R
 
 Tables with three or more columns that don't match any of the layouts above trigger a review step before flattening: for each distinct unrecognized table layout (grouped by its heading context and column headers, across all selected files), you're asked to flatten all columns, extract only specific column(s), or skip that table. This replaces the old behavior of silently joining every extra column into one string. Tables with two or fewer columns, and tables whose header row matches a known keyword (`Actual`, `Value`, `Reading`, `Result`, `Limit`, `Unit`, `Status`), are unambiguous and are still flattened automatically without a prompt.
 
+## Locking the output to a verified format
+
+Once you've confirmed a CSV export is correct for a given product, you can upload that CSV back into FlattenCT (the "Lock columns to a verified CSV" control) to fix the output format going forward: the template's column list becomes the exact, fixed set and order of output columns. Any field a report doesn't contain is simply left blank, and any field a report contains that isn't part of the template is silently excluded. Loading a template also skips the manual table-review step entirely — column selections for any unrecognized tables are inferred directly by matching the table's possible fields against the template's column names, so a verified format never has to be re-confirmed by hand. The template stays loaded across multiple flatten runs in the same browser tab until you clear it or reload the page.
+
 No files leave the browser. The included `.nojekyll` marker makes the site compatible with static GitHub Pages hosting.
 
 ## CSV safety

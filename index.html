@@ -46,6 +46,21 @@
         <button class="button primary" id="process-button" type="button" disabled>Flatten reports</button>
         <button class="button ghost" id="clear-button" type="button" disabled>Clear</button>
       </div>
+
+      <div class="template-section">
+        <div class="template-row">
+          <div>
+            <h3>Lock columns to a verified CSV (optional)</h3>
+            <p class="template-hint">Upload a previously verified FlattenCT output for this product. Its column list becomes the fixed output format — matching fields are filled in automatically, and anything not found in a report is left blank. Unrecognized tables are resolved against the template with no extra prompts.</p>
+          </div>
+          <div class="template-actions">
+            <label class="button ghost" for="template-input">Choose CSV</label>
+            <input id="template-input" type="file" accept=".csv,text/csv" hidden>
+            <button class="button ghost" id="template-clear" type="button" hidden>Clear template</button>
+          </div>
+        </div>
+        <p class="template-status" id="template-status">No template loaded — output columns will include every field found.</p>
+      </div>
     </section>
 
     <section class="status" id="status" role="status" aria-live="polite">
@@ -84,7 +99,7 @@
         <li>AGR/DDS2 matrices are flattened by section, row, and measurement header; Burst Header channels stay together.</li>
         <li>Repeated fields are retained in source order and joined with <code> | </code>; blank values do not overwrite a populated value.</li>
         <li>Files are read locally in your browser and are never uploaded.</li>
-        <li>Tables with 3 or more columns that don't match a known limits-style or labeled-header layout trigger a review step: pick "Flatten all columns," select specific column(s), or skip that table, per unique table layout.</li>
+        <li>Tables with 3 or more columns that don't match a known limits-style or labeled-header layout trigger a review step: pick "Flatten all columns," select specific column(s), or skip that table, per unique table layout. If a verified template CSV is loaded, this review is skipped entirely — the template's own columns decide which parts of these tables to keep.</li>
         <li>Downloading suggests a file name in the form <code>yymmdd-hhmmss-key-productname-flattenCT.csv</code>, where the 8-digit key and product name (e.g. EWR-P4, EWR-SOLAR, EWR-SP4, EWR-M5, AGR, ECBM, HCIM, PWD, PCG, PCM, DDSR-HCIM, XBAT) are read from the uploaded file name(s). If either is missing, a placeholder is shown so you can fill it in before downloading.</li>
       </ul>
     </details>
@@ -117,6 +132,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=24"></script>
+  <script src="app.js?v=25"></script>
 </body>
 </html>

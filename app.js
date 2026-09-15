@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const state = { files: [], rows: [], columns: [] };
+  const state = { files: [], rows: [], columns: [], templateColumns: null };
   const $ = (id) => document.getElementById(id);
   const fileInput = $("file-input");
   const dropZone = $("drop-zone");
@@ -16,6 +16,9 @@
   const filenameInput = $("filename-input");
   const filenameCancel = $("filename-cancel");
   const filenameConfirm = $("filename-confirm");
+  const templateInput = $("template-input");
+  const templateClear = $("template-clear");
+  const templateStatus = $("template-status");
 
   const clean = (value) => (value || "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
   const keyPart = (value) => clean(value).replace(/[:：]+$/, "").replace(/[\\/]+/g, "_").replace(/\s+/g, " ").replace(/\s*([|])\s*/g, "$1");
@@ -252,6 +255,24 @@
     collector.get(signature).files.add(fileName);
   }
 
+  // Given a previously-verified template's column list, work out which column(s)
+  // of an ambiguous table actually feed one of those template columns, so the
+  // decision the user would have made in the review modal can be inferred
+  // automatically instead of asked for again.
+  function inferColumnsFromTemplate(prefix, parsed, header, templateColumnSet) {
+    const selected = [];
+    if (templateColumnSet.has(pathKey([...prefix, header[0] || "Value0"]))) selected.push(0);
+    for (let column = 1; column < header.length; column += 1) {
+      const suffix = header[column] || `Value${column}`;
+      const matches = parsed.slice(1).some((cells) => {
+        const label = (cells[0] || "").replace(/[:：]$/, "");
+        return isUseful(label) && templateColumnSet.has(pathKey([...prefix, label, suffix]));
+      });
+      if (matches) selected.push(column);
+    }
+    return selected;
+  }
+
   function handleAmbiguousTable(row, prefix, parsed, header, context) {
     if (!context) {
       // Called without the app's review flow (e.g. directly via FlattenCT.parseHtml) -
@@ -262,6 +283,13 @@
     const signature = tableSignature(prefix, header);
     if (context.mode === "collect") {
       recordUnknownTable(context.collector, signature, prefix, header, parsed, context.fileName);
+      return;
+    }
+    if (context.templateColumns) {
+      // A verified template is loaded: infer which columns matter from it directly
+      // instead of asking. Anything the template doesn't reference is left out.
+      const columns = inferColumnsFromTemplate(prefix, parsed, header, context.templateColumns);
+      if (columns.length) applyAmbiguousAsColumns(row, prefix, parsed, header, columns);
       return;
     }
     const decision = context.decisions && context.decisions.get(signature);
@@ -469,6 +497,13 @@
 
   async function processFiles() {
     processButton.disabled = true;
+    if (state.templateColumns) {
+      // A verified template is loaded: skip the manual review step entirely and
+      // resolve every ambiguous table straight from the template's column list.
+      setStatus("Flattening reports against the loaded template…");
+      await finalizeProcessing(null, new Set(state.templateColumns));
+      return;
+    }
     setStatus("Scanning reports for table layouts…");
     const collector = new Map();
     for (const file of state.files) {
@@ -481,26 +516,37 @@
     processButton.disabled = state.files.length === 0;
     if (collector.size > 0) {
       setStatus(`Found ${collector.size} unrecognized table layout${collector.size === 1 ? "" : "s"}. Choose what to extract before flattening.`);
-      openTableReviewModal(collector, (decisions) => finalizeProcessing(decisions));
+      openTableReviewModal(collector, (decisions) => finalizeProcessing(decisions, null));
       return;
     }
-    await finalizeProcessing(new Map());
+    await finalizeProcessing(new Map(), null);
   }
 
-  async function finalizeProcessing(decisions) {
+  async function finalizeProcessing(decisions, templateColumnSet) {
     processButton.disabled = true;
     state.rows = [];
     const errors = [];
     for (const file of state.files) {
       try {
-        const row = parseHtml(file.name, await file.text(), { mode: "apply", decisions });
+        const context = templateColumnSet ? { mode: "apply", templateColumns: templateColumnSet } : { mode: "apply", decisions };
+        const row = parseHtml(file.name, await file.text(), context);
         state.rows.push(row);
       } catch (error) {
         errors.push(`${file.name}: ${error.message}`);
       }
     }
     processButton.disabled = state.files.length === 0;
-    state.columns = ["SourceFile", ...Array.from(new Set(state.rows.flatMap((row) => Object.keys(row).filter((key) => key !== "SourceFile"))))];
+    const discoveredColumns = Array.from(new Set(state.rows.flatMap((row) => Object.keys(row))));
+    if (state.templateColumns) {
+      state.columns = state.templateColumns.slice();
+      const extraCount = discoveredColumns.filter((key) => !state.columns.includes(key)).length;
+      const extraNote = extraCount ? ` ${extraCount} field${extraCount === 1 ? "" : "s"} found in the reports were outside the template and excluded.` : "";
+      renderResults();
+      if (errors.length) setStatus(`${state.rows.length} report(s) flattened against the template; ${errors.length} skipped.${extraNote} ${errors.join(" ")}`, "error");
+      else setStatus(`${state.rows.length} report(s) flattened against the loaded template.${extraNote}`, "success");
+      return;
+    }
+    state.columns = ["SourceFile", ...discoveredColumns.filter((key) => key !== "SourceFile")];
     renderResults();
     if (errors.length) setStatus(`${state.rows.length} report(s) flattened; ${errors.length} skipped. ${errors.join(" ")}`, "error");
     else setStatus(`${state.rows.length} report(s) flattened successfully.`, "success");
@@ -655,6 +701,52 @@
     return /\.csv$/i.test(trimmed) ? trimmed : `${trimmed}.csv`;
   }
 
+  // --- Template CSV: lock the output to a previously-verified column set ------
+  // Minimal RFC4180-ish CSV parser (handles quotes, escaped "" quotes, CRLF/LF,
+  // and embedded commas/newlines) - only the header row is actually used.
+  function parseCsv(text) {
+    const rows = [];
+    let field = "";
+    let row = [];
+    let inQuotes = false;
+    const source = text.replace(/^\ufeff/, "");
+    for (let i = 0; i < source.length; i += 1) {
+      const char = source[i];
+      if (inQuotes) {
+        if (char === '"') {
+          if (source[i + 1] === '"') { field += '"'; i += 1; } else { inQuotes = false; }
+        } else {
+          field += char;
+        }
+        continue;
+      }
+      if (char === '"') { inQuotes = true; continue; }
+      if (char === ",") { row.push(field); field = ""; continue; }
+      if (char === "\r") continue;
+      if (char === "\n") { row.push(field); rows.push(row); field = ""; row = []; continue; }
+      field += char;
+    }
+    if (field.length || row.length) { row.push(field); rows.push(row); }
+    return rows;
+  }
+
+  function parseCsvHeader(text) {
+    const rows = parseCsv(text);
+    return rows.length ? rows[0].map((value) => value.trim()).filter((value) => value !== "") : [];
+  }
+
+  async function loadTemplate(file) {
+    try {
+      const columns = parseCsvHeader(await file.text());
+      if (!columns.length) throw new Error("no header row found");
+      state.templateColumns = columns.includes("SourceFile") ? columns : ["SourceFile", ...columns];
+      templateStatus.textContent = `Template loaded from "${file.name}": ${state.templateColumns.length} column${state.templateColumns.length === 1 ? "" : "s"} will be extracted; anything else found is skipped.`;
+      templateClear.hidden = false;
+    } catch (error) {
+      setStatus(`Could not read that template CSV (${error.message}).`, "error");
+    }
+  }
+
   function buildCsv() {
     return [state.columns.map(csvValue).join(","), ...state.rows.map((row) => state.columns.map((column) => csvValue(row[column] ?? "")).join(","))].join("\r\n");
   }
@@ -685,6 +777,16 @@
   dropZone.addEventListener("drop", (event) => chooseFiles(event.dataTransfer.files));
   processButton.addEventListener("click", processFiles);
   clearButton.addEventListener("click", () => { state.files = []; state.rows = []; state.columns = []; resultsCard.hidden = true; renderFiles(); setStatus("Selection cleared."); });
+  templateInput.addEventListener("change", (event) => {
+    const file = event.target.files[0];
+    event.target.value = "";
+    if (file) loadTemplate(file);
+  });
+  templateClear.addEventListener("click", () => {
+    state.templateColumns = null;
+    templateStatus.textContent = "No template loaded — output columns will include every field found.";
+    templateClear.hidden = true;
+  });
   downloadButton.addEventListener("click", openFilenameModal);
   filenameCancel.addEventListener("click", closeFilenameModal);
   filenameConfirm.addEventListener("click", () => {
