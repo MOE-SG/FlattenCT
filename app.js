@@ -395,7 +395,7 @@
     { match: /^DDS2 Vibration Data: 25 G Sensor$/i, headers: ["Accel", "Average (g)", "Shock (g)", "Peak (g)"] },
     { match: /^DDS2 Vibration Data: 200 G Sensor$/i, headers: ["Accel", "Average (g)", "Shock (g)", "Peak (g)"] },
     { match: /^DDS2 Burst Header$/i, headers: ["Version", "Peak Th(g)", "Shock Th(g)", "Avg Th(g)", "Ang Th", "Channels Enabled"] },
-    { match: /^Trigger Source$/i, headers: ["Trigger Source", "Max Peak(g)", "Max Shock(g)", "Max Avg(g)", "Max Ang(g)"] },
+    { match: /^Trigger Source$/i, headers: ["Trigger Source", "Max Peak(g)", "Max Shock(g)", "Max Avg(g)", "Max Ang(g)"], labelField: true },
     { match: /^Scale Factors$/i, headers: ["XL", "XH", "YL", "YH", "ZL", "ZH"] },
     { match: /^DDS2 Normalization Factors:\s*25 G Sensor$/i, headers: ["Accel", "Average (g)", "Shock (g)", "Peak (g)"] },
     { match: /^DDS2 Normalization Factors:\s*200 G Sensor$/i, headers: ["Accel", "Average (g)", "Shock (g)", "Peak (g)"] }
@@ -422,6 +422,20 @@
       });
     if (!rows.length) return false;
     for (const cells of rows) {
+      if (section.labelField) {
+        // headers[0] identifies which specific parameter this reading came
+        // from (e.g. "Trigger Source" is whatever actually triggered the max
+        // reading - it varies report to report), so it must be stored as its
+        // own value rather than used as a key prefix: otherwise the other
+        // columns' key names would shift depending on that value, and the
+        // same field would end up under a different column name in every file.
+        if (isUseful(cells[0])) addValue(row, pathKey([sectionName, section.headers[0]]), cells[0]);
+        section.headers.slice(1).forEach((header, index) => {
+          const value = cells[index + 1] || "";
+          if (isUseful(value)) addValue(row, pathKey([sectionName, header]), value);
+        });
+        continue;
+      }
       const hasLabel = section.headers.length > 1 && !/^-?\d+(?:\.\d+)?$/.test(cells[0]);
       const label = hasLabel ? cells[0] : "";
       const values = hasLabel ? cells.slice(1) : cells;
@@ -722,7 +736,7 @@
   // distinct compound "DDSR-HCIM" token, and vice versa.
   const PRODUCT_CODES = [
     "DDSR-HCIM", "EWR-SOLAR", "EWR-SP4", "EWR-M5", "EWR-P4",
-    "ECBM", "HCIM", "XBAT", "AGR", "PWD", "PCG", "PCM"
+    "ECMB", "HCIM", "XBAT", "AGR", "PWD", "PCG", "PCM"
   ];
   const PRODUCT_CODE_LOOKUP = new Map(PRODUCT_CODES.map((code) => [code.toUpperCase(), code]));
 

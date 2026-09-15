@@ -18,6 +18,8 @@ DDSR self-test parameter tables with a `Test Meas.*` column export only that mea
 
 Nested ECMB diagnostics tables are matched to their outer `Actual Reading` header, so only actual measurements are exported. Colon-separated metadata fields are retained as columns even when their value is blank. The focused regression page at `tests/ecmb-regression.html` validates this layout.
 
+In AGR reports, the `Trigger Source` section (whichever axis/parameter actually triggered the last max-reading event, plus its Peak/Shock/Avg/Ang values) always exports under a fixed set of column names, with the triggering parameter's own identity (e.g. `Ang`, `Peak Ang`) stored as its own field rather than folded into the other columns' names — otherwise the same field would land under a different column name in every file, depending on which parameter happened to trigger it.
+
 Nested M5 diagnostics tables use the same outer-header matching and tolerate parameters with blank units. Their actual readings, including status suffixes such as `H`, `L`, and `NaN Failed`, are retained without exporting limits. The focused regression page at `tests/m5-regression.html` validates this layout.
 
 M5 Low Gain tables with two measurements in one row split each row into separate fields, such as `LowGain_250kHz_8-inch LT_Phase Shift(deg)` and `LowGain_250kHz_8-inch LT_Attenuation(dB)`.
