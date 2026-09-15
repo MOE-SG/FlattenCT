@@ -149,6 +149,10 @@
   }
 
   function extractTable(table, row, currentMetric, context) {
+    // A pending "generic" header carry-over (see below) should only be dropped
+    // once we hit a table that clearly has content of its own; an empty or
+    // totally uninformative table shouldn't end it, since malformed markup can
+    // put an inert wrapper table between a header table and its real data.
     const rows = Array.from(table.querySelectorAll(":scope > thead > tr, :scope > tbody > tr, :scope > tr"));
     if (!rows.length) return currentMetric;
     const caption = table.querySelector(":scope > caption");
@@ -157,17 +161,47 @@
     const parsed = rawParsed.map((cells) => cells.filter((value) => value !== ""));
     if (!parsed.length) return currentMetric;
     const header = parsed[0];
+    const clearedMetric = currentMetric?.generic ? null : currentMetric;
     const multiMetric = rawParsed.map(multiMetricHeader).find(Boolean);
     if (multiMetric) return multiMetric;
-    if (extractMultiMetricTable(table, rawParsed, currentMetric?.multi ? currentMetric : null, row)) return currentMetric;
+    if (extractMultiMetricTable(table, rawParsed, currentMetric?.multi ? currentMetric : null, row)) return clearedMetric;
     const metric = parsed.map(metricHeader).find(Boolean);
     if (metric?.testMeasurement) {
       extractTestMeasurementTable(parsed, metric, row);
-      return currentMetric;
+      return clearedMetric;
     }
     if (metric) return metric;
-    if (extractMetricTable(table, parsed, currentMetric, row)) return currentMetric;
+    if (extractMetricTable(table, parsed, clearedMetric, row)) return clearedMetric;
+    // Many reports lead with a block of "Label : Value" rows (the value cell is
+    // often blank). Filtering out blank cells elsewhere in this function makes
+    // those rows inconsistent in length (2 cells when blank, 3 when not), which
+    // can otherwise look like a multi-column data table. Detect this shape from
+    // the *raw*, unfiltered cells - where the pattern is always uniform - and
+    // handle it directly: label becomes the field name, value (blank or not)
+    // becomes the field's data.
+    if (rawParsed.length && rawParsed.every((cells) => cells.length >= 2 && /^[:：]$/.test(cells[1]))) {
+      for (const cells of rawParsed) {
+        const label = cells[0].replace(/[:：]$/, "");
+        if (!isUseful(label)) continue;
+        addField(row, pathKey([...prefix, label]), cells.slice(2).join(" "));
+      }
+      return clearedMetric;
+    }
     const looksLikeHeader = header.length > 1 && header.some((cell) => /actual|value|reading|result|limit|unit|status/i.test(cell));
+    // Some reports render a header row and its data rows as two separate <table>
+    // elements that only *look* like one continuous table. If the previous table
+    // was a lone header row we couldn't otherwise place (see below), and this
+    // table has no header of its own but the same column count, treat it as that
+    // header's data section instead of misreading its first data row as a header.
+    if (currentMetric?.generic && !looksLikeHeader && header.length === currentMetric.header.length) {
+      handleAmbiguousTable(row, currentMetric.prefix, [currentMetric.header, ...parsed], currentMetric.header, context);
+      return null;
+    }
+    // A lone header row with no data rows of its own: don't guess yet - carry it
+    // forward in case a later table supplies the matching data rows.
+    if (parsed.length === 1 && header.length > 2 && !looksLikeHeader) {
+      return { generic: true, header: header.slice(), prefix: prefix.slice() };
+    }
     if (!looksLikeHeader) {
       // Some report tables lead with a single-cell colspan caption row, so the
       // real multi-column header can be a few rows down rather than at parsed[0].
@@ -191,15 +225,17 @@
         }
         const ambiguousSection = parsed.slice(dataHeaderIndex);
         handleAmbiguousTable(row, prefix, ambiguousSection, ambiguousSection[0], context);
-        return currentMetric;
+        return clearedMetric;
       }
     }
     const start = looksLikeHeader ? 1 : 0;
+    let addedAnything = false;
     for (let index = start; index < parsed.length; index += 1) {
       const cells = parsed[index];
       if (cells.length < 2) continue;
       const label = cells[0].replace(/[:：]$/, "");
       if (!isUseful(label)) continue;
+      addedAnything = true;
       if (looksLikeHeader) {
         for (let column = 1; column < cells.length; column += 1) {
           const suffix = header[column] || `Value${column}`;
@@ -211,7 +247,10 @@
         addValue(row, pathKey([...prefix, label]), cells.slice(1).join(" "));
       }
     }
-    return currentMetric;
+    // If this table turned out to be empty/uninformative (e.g. a wrapper
+    // artifact from malformed markup), preserve any pending generic header
+    // untouched rather than dropping it, so a later table can still consume it.
+    return addedAnything ? clearedMetric : currentMetric;
   }
 
   // --- Ambiguous (unrecognized) tables: consult the user instead of guessing ----
@@ -305,7 +344,12 @@
     const body = document.body;
     if (!body) return;
     const clone = body.cloneNode(true);
-    clone.querySelectorAll("script, style").forEach((element) => element.remove());
+    // Table content is already handled structurally, row by row, by extractTable.
+    // Re-scanning it here as plain text is redundant, and actively harmful when a
+    // table has no <br> between rows: the browser's textContent then collapses an
+    // entire table into one line, and the regex below would grab everything after
+    // the first colon in that line as a single field's value.
+    clone.querySelectorAll("script, style, table").forEach((element) => element.remove());
     clone.querySelectorAll("br").forEach((element) => element.replaceWith("\n"));
     const text = clone.textContent || "";
     text.split(/\r?\n/).map(clean).filter(Boolean).forEach((line) => {
