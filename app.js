@@ -12,6 +12,10 @@
   const status = $("status");
   const statusText = $("status-text");
   const resultsCard = $("results-card");
+  const filenameOverlay = $("filename-modal-overlay");
+  const filenameInput = $("filename-input");
+  const filenameCancel = $("filename-cancel");
+  const filenameConfirm = $("filename-confirm");
 
   const clean = (value) => (value || "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
   const keyPart = (value) => clean(value).replace(/[:：]+$/, "").replace(/[\\/]+/g, "_").replace(/\s+/g, " ").replace(/\s*([|])\s*/g, "$1");
@@ -141,7 +145,7 @@
     }
   }
 
-  function extractTable(table, row, currentMetric) {
+  function extractTable(table, row, currentMetric, context) {
     const rows = Array.from(table.querySelectorAll(":scope > thead > tr, :scope > tbody > tr, :scope > tr"));
     if (!rows.length) return currentMetric;
     const caption = table.querySelector(":scope > caption");
@@ -161,6 +165,32 @@
     if (metric) return metric;
     if (extractMetricTable(table, parsed, currentMetric, row)) return currentMetric;
     const looksLikeHeader = header.length > 1 && header.some((cell) => /actual|value|reading|result|limit|unit|status/i.test(cell));
+    if (!looksLikeHeader) {
+      // Some report tables lead with a single-cell colspan caption row, so the
+      // real multi-column header can be a few rows down rather than at parsed[0].
+      // Find the first row with 3+ cells: that's the genuine ambiguous section
+      // (we can't confidently tell whether every column is independent data or
+      // something else), so hand it to the user instead of silently squashing
+      // every extra column into one joined string. Rows before it are simple
+      // label:value pairs and are handled exactly as before.
+      const dataHeaderIndex = parsed.findIndex((cells) => cells.length > 2);
+      if (dataHeaderIndex >= 0) {
+        for (let index = 0; index < dataHeaderIndex; index += 1) {
+          const cells = parsed[index];
+          if (cells.length < 2) continue;
+          const label = cells[0].replace(/[:：]$/, "");
+          if (!isUseful(label)) continue;
+          if (/^[:：]$/.test(cells[1])) {
+            addField(row, pathKey([...prefix, label]), cells.slice(2).join(" "));
+          } else {
+            addValue(row, pathKey([...prefix, label]), cells.slice(1).join(" "));
+          }
+        }
+        const ambiguousSection = parsed.slice(dataHeaderIndex);
+        handleAmbiguousTable(row, prefix, ambiguousSection, ambiguousSection[0], context);
+        return currentMetric;
+      }
+    }
     const start = looksLikeHeader ? 1 : 0;
     for (let index = start; index < parsed.length; index += 1) {
       const cells = parsed[index];
@@ -179,6 +209,68 @@
       }
     }
     return currentMetric;
+  }
+
+  // --- Ambiguous (unrecognized) tables: consult the user instead of guessing ----
+  function tableSignature(prefix, header) {
+    return `${prefix.join(" > ")}::${header.join("|")}`;
+  }
+
+  function applyAmbiguousAsJoinedValue(row, prefix, parsed) {
+    for (const cells of parsed) {
+      if (cells.length < 2) continue;
+      const label = cells[0].replace(/[:：]$/, "");
+      if (!isUseful(label)) continue;
+      if (/^[:：]$/.test(cells[1])) {
+        addField(row, pathKey([...prefix, label]), cells.slice(2).join(" "));
+      } else {
+        addValue(row, pathKey([...prefix, label]), cells.slice(1).join(" "));
+      }
+    }
+  }
+
+  function applyAmbiguousAsColumns(row, prefix, parsed, header, selectedColumns) {
+    for (const cells of parsed.slice(1)) {
+      if (cells.length < 2) continue;
+      const label = cells[0].replace(/[:：]$/, "");
+      if (!isUseful(label)) continue;
+      for (let column = 1; column < cells.length; column += 1) {
+        if (selectedColumns && !selectedColumns.includes(column)) continue;
+        const suffix = header[column] || `Value${column}`;
+        addValue(row, pathKey([...prefix, label, suffix]), cells[column]);
+      }
+      if (selectedColumns && selectedColumns.includes(0)) {
+        addValue(row, pathKey([...prefix, header[0] || "Value0"]), cells[0]);
+      }
+    }
+  }
+
+  function recordUnknownTable(collector, signature, prefix, header, parsed, fileName) {
+    if (!collector.has(signature)) {
+      collector.set(signature, { prefix: prefix.slice(), header: header.slice(), sampleRows: parsed.slice(0, 6), files: new Set() });
+    }
+    collector.get(signature).files.add(fileName);
+  }
+
+  function handleAmbiguousTable(row, prefix, parsed, header, context) {
+    if (!context) {
+      // Called without the app's review flow (e.g. directly via FlattenCT.parseHtml) -
+      // preserve the original fallback behavior: join extra columns into one value.
+      applyAmbiguousAsJoinedValue(row, prefix, parsed);
+      return;
+    }
+    const signature = tableSignature(prefix, header);
+    if (context.mode === "collect") {
+      recordUnknownTable(context.collector, signature, prefix, header, parsed, context.fileName);
+      return;
+    }
+    const decision = context.decisions && context.decisions.get(signature);
+    if (!decision || decision.type === "all") {
+      applyAmbiguousAsColumns(row, prefix, parsed, header, null);
+    } else if (decision.type === "columns") {
+      applyAmbiguousAsColumns(row, prefix, parsed, header, decision.columns);
+    }
+    // decision.type === "skip" -> intentionally add nothing from this table
   }
 
   function extractTextPairs(document, row) {
@@ -323,7 +415,7 @@
     return true;
   }
 
-  function parseHtml(name, html) {
+  function parseHtml(name, html, context) {
     const document = new DOMParser().parseFromString(html, "text/html");
     const row = { SourceFile: name };
     if (document.querySelector("parsererror")) throw new Error("The browser could not parse this HTML.");
@@ -333,9 +425,10 @@
       if (Object.keys(row).length === 1) throw new Error("No readable fields were found.");
       return row;
     }
+    const tableContext = context ? Object.assign({}, context, { fileName: name }) : undefined;
     let currentMetric = null;
     document.querySelectorAll("table").forEach((table) => {
-      currentMetric = extractTable(table, row, currentMetric);
+      currentMetric = extractTable(table, row, currentMetric, tableContext);
     });
     extractTextPairs(document, row);
     const title = clean(document.title);
@@ -375,20 +468,108 @@
   }
 
   async function processFiles() {
+    processButton.disabled = true;
+    setStatus("Scanning reports for table layouts…");
+    const collector = new Map();
+    for (const file of state.files) {
+      try {
+        parseHtml(file.name, await file.text(), { mode: "collect", collector });
+      } catch (error) {
+        // Real parse errors are surfaced during the flattening pass below.
+      }
+    }
+    processButton.disabled = state.files.length === 0;
+    if (collector.size > 0) {
+      setStatus(`Found ${collector.size} unrecognized table layout${collector.size === 1 ? "" : "s"}. Choose what to extract before flattening.`);
+      openTableReviewModal(collector, (decisions) => finalizeProcessing(decisions));
+      return;
+    }
+    await finalizeProcessing(new Map());
+  }
+
+  async function finalizeProcessing(decisions) {
+    processButton.disabled = true;
     state.rows = [];
     const errors = [];
     for (const file of state.files) {
       try {
-        const row = parseHtml(file.name, await file.text());
+        const row = parseHtml(file.name, await file.text(), { mode: "apply", decisions });
         state.rows.push(row);
       } catch (error) {
         errors.push(`${file.name}: ${error.message}`);
       }
     }
+    processButton.disabled = state.files.length === 0;
     state.columns = ["SourceFile", ...Array.from(new Set(state.rows.flatMap((row) => Object.keys(row).filter((key) => key !== "SourceFile"))))];
     renderResults();
     if (errors.length) setStatus(`${state.rows.length} report(s) flattened; ${errors.length} skipped. ${errors.join(" ")}`, "error");
     else setStatus(`${state.rows.length} report(s) flattened successfully.`, "success");
+  }
+
+  // --- Table review modal: let the user choose how to handle unrecognized tables ----
+  const tableReviewOverlay = $("table-review-overlay");
+  const tableReviewList = $("table-review-list");
+  const tableReviewContinue = $("table-review-continue");
+  const tableReviewCancel = $("table-review-cancel");
+
+  function renderTableReview(collector) {
+    const items = Array.from(collector.entries());
+    tableReviewList.innerHTML = items.map(([signature, info], index) => {
+      const columnLabels = info.header.map((label, i) => label || `Column ${i + 1}`);
+      const [headRow, ...bodyRows] = info.sampleRows;
+      const theadHtml = headRow ? `<tr>${columnLabels.map((_, i) => `<th>${escapeHtml(headRow[i] ?? "")}</th>`).join("")}</tr>` : "";
+      const tbodyHtml = bodyRows.map((cells) => `<tr>${columnLabels.map((_, i) => `<td>${escapeHtml(cells[i] ?? "")}</td>`).join("")}</tr>`).join("");
+      const columnChecks = columnLabels.map((label, i) => `<label><input type="checkbox" class="table-review-col" data-index="${i}" checked> ${escapeHtml(label)}</label>`).join("");
+      const heading = info.prefix.length ? info.prefix.join(" › ") : "Untitled table";
+      return `
+        <div class="table-review-item" data-signature="${escapeHtml(signature)}">
+          <h4>${escapeHtml(heading)}</h4>
+          <p class="table-review-meta">${columnLabels.length} columns · found in ${info.files.size} file${info.files.size === 1 ? "" : "s"}</p>
+          <div class="table-review-preview"><table><thead>${theadHtml}</thead><tbody>${tbodyHtml}</tbody></table></div>
+          <div class="table-review-options">
+            <label><input type="radio" name="table-review-mode-${index}" value="all" checked> Flatten all columns</label>
+            <label><input type="radio" name="table-review-mode-${index}" value="columns"> Extract specific column(s) only</label>
+            <div class="table-review-columns" hidden>${columnChecks}</div>
+            <label><input type="radio" name="table-review-mode-${index}" value="skip"> Skip this table</label>
+          </div>
+        </div>`;
+    }).join("");
+    tableReviewList.querySelectorAll(".table-review-item").forEach((item) => {
+      const columnsBox = item.querySelector(".table-review-columns");
+      item.querySelectorAll('input[type="radio"]').forEach((radio) => {
+        radio.addEventListener("change", () => { columnsBox.hidden = radio.value !== "columns"; });
+      });
+    });
+  }
+
+  function collectTableDecisions() {
+    const decisions = new Map();
+    tableReviewList.querySelectorAll(".table-review-item").forEach((item) => {
+      const signature = item.dataset.signature;
+      const mode = item.querySelector('input[type="radio"]:checked').value;
+      if (mode === "skip") decisions.set(signature, { type: "skip" });
+      else if (mode === "columns") {
+        const columns = Array.from(item.querySelectorAll(".table-review-col:checked")).map((box) => Number(box.dataset.index));
+        decisions.set(signature, { type: "columns", columns });
+      } else {
+        decisions.set(signature, { type: "all" });
+      }
+    });
+    return decisions;
+  }
+
+  function openTableReviewModal(collector, onContinue) {
+    renderTableReview(collector);
+    tableReviewOverlay.hidden = false;
+    tableReviewContinue.onclick = () => {
+      const decisions = collectTableDecisions();
+      tableReviewOverlay.hidden = true;
+      onContinue(decisions);
+    };
+    tableReviewCancel.onclick = () => {
+      tableReviewOverlay.hidden = true;
+      setStatus("Flattening canceled.");
+    };
   }
 
   function renderResults() {
@@ -414,14 +595,88 @@
     return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
   }
 
-  function downloadCsv() {
-    const csv = [state.columns.map(csvValue).join(","), ...state.rows.map((row) => state.columns.map((column) => csvValue(row[column] ?? "")).join(","))].join("\r\n");
-    const url = URL.createObjectURL(new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" }));
+  // --- Output filename: yymmdd-hhmmss-key-productname-flattenCT.csv ---------
+  // Key and product name are detected from the uploaded report filenames.
+  // Product codes are matched as whole filename *tokens* (split on underscore/space/dot,
+  // keeping internal hyphens) so a standalone "HCIM" token is never confused with the
+  // distinct compound "DDSR-HCIM" token, and vice versa.
+  const PRODUCT_CODES = [
+    "DDSR-HCIM", "EWR-SOLAR", "EWR-SP4", "EWR-M5", "EWR-P4",
+    "ECBM", "HCIM", "XBAT", "AGR", "PWD", "PCG", "PCM"
+  ];
+  const PRODUCT_CODE_LOOKUP = new Map(PRODUCT_CODES.map((code) => [code.toUpperCase(), code]));
+
+  function extractKeyFromName(name) {
+    const match = (name || "").match(/(\d{8})/);
+    return match ? match[1] : "";
+  }
+
+  function extractProductFromName(name) {
+    const base = (name || "").replace(/\.[^./\\]+$/, "");
+    const tokens = base.split(/[^A-Za-z0-9-]+/).filter(Boolean);
+    for (const token of tokens) {
+      const match = PRODUCT_CODE_LOOKUP.get(token.toUpperCase());
+      if (match) return match;
+    }
+    return "";
+  }
+
+  function detectKeyAndProduct() {
+    let key = "";
+    let product = "";
+    for (const file of state.files) {
+      if (!key) key = extractKeyFromName(file.name);
+      if (!product) product = extractProductFromName(file.name);
+      if (key && product) break;
+    }
+    return { key, product };
+  }
+
+  function pad(value) {
+    return String(value).padStart(2, "0");
+  }
+
+  function timestampParts(date) {
+    return {
+      date: `${pad(date.getFullYear() % 100)}${pad(date.getMonth() + 1)}${pad(date.getDate())}`,
+      time: `${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`
+    };
+  }
+
+  function suggestedFilename() {
+    const { key, product } = detectKeyAndProduct();
+    const { date, time } = timestampParts(new Date());
+    return `${date}-${time}-${key || "KEY"}-${product || "PRODUCT"}-flattenCT.csv`;
+  }
+
+  function sanitizeFilename(value) {
+    const trimmed = (value || "").trim().replace(/[\\/:*?"<>|]+/g, "_");
+    if (!trimmed) return "flattenCT.csv";
+    return /\.csv$/i.test(trimmed) ? trimmed : `${trimmed}.csv`;
+  }
+
+  function buildCsv() {
+    return [state.columns.map(csvValue).join(","), ...state.rows.map((row) => state.columns.map((column) => csvValue(row[column] ?? "")).join(","))].join("\r\n");
+  }
+
+  function triggerDownload(filename) {
+    const url = URL.createObjectURL(new Blob(["\ufeff", buildCsv()], { type: "text/csv;charset=utf-8" }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = `flattenct-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = filename;
     link.click();
     URL.revokeObjectURL(url);
+  }
+
+  function openFilenameModal() {
+    filenameInput.value = suggestedFilename();
+    filenameOverlay.hidden = false;
+    filenameInput.focus();
+    filenameInput.select();
+  }
+
+  function closeFilenameModal() {
+    filenameOverlay.hidden = true;
   }
 
   fileInput.addEventListener("change", (event) => chooseFiles(event.target.files));
@@ -430,6 +685,17 @@
   dropZone.addEventListener("drop", (event) => chooseFiles(event.dataTransfer.files));
   processButton.addEventListener("click", processFiles);
   clearButton.addEventListener("click", () => { state.files = []; state.rows = []; state.columns = []; resultsCard.hidden = true; renderFiles(); setStatus("Selection cleared."); });
-  downloadButton.addEventListener("click", downloadCsv);
+  downloadButton.addEventListener("click", openFilenameModal);
+  filenameCancel.addEventListener("click", closeFilenameModal);
+  filenameConfirm.addEventListener("click", () => {
+    const filename = sanitizeFilename(filenameInput.value);
+    closeFilenameModal();
+    triggerDownload(filename);
+  });
+  filenameOverlay.addEventListener("click", (event) => { if (event.target === filenameOverlay) closeFilenameModal(); });
+  filenameInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") { event.preventDefault(); filenameConfirm.click(); }
+    else if (event.key === "Escape") { event.preventDefault(); closeFilenameModal(); }
+  });
   renderFiles();
 })();

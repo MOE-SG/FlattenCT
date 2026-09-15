@@ -18,6 +18,8 @@ For the full M5 layout, the six Low/High Gain tables flatten to 204 Phase/Attenu
 
 AGR/DDS2 reports use section-aware matrix parsing. Calibration A/B values, DSP RPM fields, DDS2 axis/frequency or statistical measurements, trigger/scale factors, and normalization factors become individual columns. The fixed AGR field set is initialized as empty before extraction, so a missing section remains an empty CSV field rather than removing the column. `DDS2 Burst Header_Channels Enabled` remains one field containing values such as `XL XH YL YH ZL ZH Ang`. The focused regression page at `tests/agr-regression.html` validates this layout.
 
+Tables with three or more columns that don't match any of the layouts above trigger a review step before flattening: for each distinct unrecognized table layout (grouped by its heading context and column headers, across all selected files), you're asked to flatten all columns, extract only specific column(s), or skip that table. This replaces the old behavior of silently joining every extra column into one string. Tables with two or fewer columns, and tables whose header row matches a known keyword (`Actual`, `Value`, `Reading`, `Result`, `Limit`, `Unit`, `Status`), are unambiguous and are still flattened automatically without a prompt.
+
 No files leave the browser. The included `.nojekyll` marker makes the site compatible with static GitHub Pages hosting.
 
 ## CSV safety
