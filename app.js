@@ -187,9 +187,39 @@
       }
       return clearedMetric;
     }
-    const looksLikeHeader = header.length > 1 && header.some((cell) => /actual|value|reading|result|limit|unit|status/i.test(cell));
+    // Many sensor/instrument reports give each parameter its own row of
+    // [Label, Units, Value] with no shared header row at all - e.g.
+    // "Mud Resistivity | ohm-meter | 0.00" followed by "Voltage | % | 0.00".
+    // A row with no unit for that parameter often renders as just 2 cells
+    // (or 3 with a blank middle cell), so - as with the colon-list block above
+    // - detect this from the *raw* cells and cap it at 3 columns: real
+    // multi-column data tables in these reports need more columns than that,
+    // so this only catches the label/units/value shape, never a genuine
+    // shared-header table.
+    const maxRawCells = rawParsed.reduce((max, cells) => Math.max(max, cells.length), 0);
+    if (maxRawCells >= 2 && maxRawCells <= 3 && rawParsed.some((cells) => cells.length >= 2)) {
+      for (const cells of rawParsed) {
+        if (cells.length < 2) continue;
+        const label = cells[0].replace(/[:：]$/, "");
+        if (!isUseful(label)) continue;
+        const units = cells.length >= 3 ? cells[1] : "";
+        const value = cells[cells.length - 1];
+        const key = isUseful(units) ? `${label} (${units})` : label;
+        addValue(row, pathKey([...prefix, key]), value);
+      }
+      return clearedMetric;
+    }
+    // Column-header keyword sniffing only makes sense for genuinely multi-column
+    // tables (3+ columns). For a plain 2-column table, row 0 is virtually always
+    // just another "Label, Value" row, not a shared header - and a very common
+    // label like "Status" would otherwise falsely match the keyword check below
+    // (e.g. "Status" / "Pass" followed by "FlashTest" / "TEST PASSED" rows would
+    // get read as a header, causing "Status" to be skipped entirely and the next
+    // row to come out as "FlashTest_Pass" instead of "FlashTest").
+    const looksLikeHeader = header.length > 2 && header.some((cell) => /actual|value|reading|result|limit|unit|status/i.test(cell));
     // Some reports render a header row and its data rows as two separate <table>
     // elements that only *look* like one continuous table. If the previous table
+    // was a lone header row we couldn't otherwise place (see below), and this
     // was a lone header row we couldn't otherwise place (see below), and this
     // table has no header of its own but the same column count, treat it as that
     // header's data section instead of misreading its first data row as a header.
