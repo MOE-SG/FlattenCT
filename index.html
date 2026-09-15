@@ -76,6 +76,7 @@
         <button class="button primary" id="download-button" type="button">Download CSV</button>
       </div>
       <div class="result-summary" id="result-summary"></div>
+      <label class="transpose-toggle"><input type="checkbox" id="transpose-toggle"> Transpose (show fields as rows, files as columns)</label>
       <p class="output-note">CSV values that could be interpreted as Excel formulas or commands are prefixed with an apostrophe. Ordinary negative numbers remain unchanged.</p>
       <div class="table-wrap">
         <table id="preview-table">
@@ -100,6 +101,7 @@
         <li>Repeated fields are retained in source order and joined with <code> | </code>; blank values do not overwrite a populated value.</li>
         <li>Files are read locally in your browser and are never uploaded.</li>
         <li>Tables with 3 or more columns that don't match a known limits-style or labeled-header layout trigger a review step: pick "Flatten all columns," select specific column(s), or skip that table, per unique table layout. If a verified template CSV is loaded, this review is skipped entirely — the template's own columns decide which parts of these tables to keep.</li>
+        <li>A trailing range-status flag on a number - a bare "L" or "H" with or without a space before it, e.g. "1.70 L" - is stripped, leaving just the number.</li>
         <li>Downloading suggests a file name in the form <code>yymmdd-hhmmss-key-productname-flattenCT.csv</code>, where the 8-digit key and product name (e.g. EWR-P4, EWR-SOLAR, EWR-SP4, EWR-M5, AGR, ECMB, HCIM, PWD, PCG, PCM, DDSR-HCIM, XBAT) are read from the uploaded file name(s). If either is missing, a placeholder is shown so you can fill it in before downloading.</li>
       </ul>
     </details>
@@ -132,6 +134,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=26"></script>
+  <script src="app.js?v=27"></script>
 </body>
 </html>

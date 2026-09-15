@@ -19,8 +19,20 @@
   const templateInput = $("template-input");
   const templateClear = $("template-clear");
   const templateStatus = $("template-status");
+  const transposeToggle = $("transpose-toggle");
 
   const clean = (value) => (value || "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+  // Many confidence-test reports flag an out-of-range reading by appending a
+  // bare "L" (low) or "H" (high) directly after the number, with or without a
+  // space - e.g. "1.70 L", "-0.5H", "0L". That's a range-status marker, not
+  // part of the value itself, so strip it before the value is ever stored.
+  // Anchored to the whole value so it only matches a number with nothing else
+  // around it - never a legitimate unit or word that happens to end in L/H.
+  const limitFlagPattern = /^([+-]?(?:\d+\.?\d*|\.\d+))\s?[LH]$/i;
+  const stripLimitFlag = (value) => {
+    const match = limitFlagPattern.exec(value);
+    return match ? match[1] : value;
+  };
   const keyPart = (value) => clean(value).replace(/[:：]+$/, "").replace(/[\\/]+/g, "_").replace(/\s+/g, " ").replace(/\s*([|])\s*/g, "$1");
   const pathKey = (parts) => parts.map(keyPart).filter(Boolean).join("_");
   const textOf = (element) => clean(element ? element.textContent : "");
@@ -33,7 +45,7 @@
 
   function addValue(row, key, value) {
     key = pathKey([key]);
-    value = clean(value);
+    value = stripLimitFlag(clean(value));
     if (!key || !isUseful(value)) return;
     if (!row[key]) row[key] = value;
     else if (row[key] !== value && !row[key].split(" | ").includes(value)) row[key] += ` | ${value}`;
@@ -417,7 +429,10 @@
     const rows = agrDataRows(table, section.headers.length)
       .filter((cells) => {
         const values = cells.slice(1);
-        const numericValues = values.filter((value) => /^[-+]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(value)).length;
+        // Tolerate a trailing " L"/"H" range-status flag here too (see
+        // stripLimitFlag) - otherwise a row with multiple flagged readings
+        // could be undercounted as "not numeric enough" and dropped entirely.
+        const numericValues = values.filter((value) => /^[-+]?(?:\d+(?:\.\d*)?|\.\d+)\s?[LH]?$/i.test(value)).length;
         return numericValues >= Math.max(1, section.headers.length - 2);
       });
     if (!rows.length) return false;
@@ -710,8 +725,21 @@
     resultsCard.hidden = state.rows.length === 0;
     if (!state.rows.length) return;
     $("result-summary").textContent = `${state.rows.length} rows × ${state.columns.length} columns. Empty cells mean that field was not present in that source report.`;
-    $("preview-table").querySelector("thead").innerHTML = `<tr>${state.columns.map((column) => `<th>${escapeHtml(column)}</th>`).join("")}</tr>`;
-    $("preview-table").querySelector("tbody").innerHTML = state.rows.map((row) => `<tr>${state.columns.map((column) => `<td>${escapeHtml(row[column] ?? "")}</td>`).join("")}</tr>`).join("");
+    const thead = $("preview-table").querySelector("thead");
+    const tbody = $("preview-table").querySelector("tbody");
+    if (transposeToggle.checked) {
+      // Fields as rows, files as columns - easier to scan when there are many
+      // fields but only a handful of files. SourceFile itself becomes the
+      // column header, so it's skipped as a field row to avoid repeating it.
+      const fileLabels = state.rows.map((row, index) => row.SourceFile || `File ${index + 1}`);
+      thead.innerHTML = `<tr><th>Field</th>${fileLabels.map((label) => `<th>${escapeHtml(label)}</th>`).join("")}</tr>`;
+      tbody.innerHTML = state.columns.filter((column) => column !== "SourceFile")
+        .map((column) => `<tr><td>${escapeHtml(column)}</td>${state.rows.map((row) => `<td>${escapeHtml(row[column] ?? "")}</td>`).join("")}</tr>`)
+        .join("");
+    } else {
+      thead.innerHTML = `<tr>${state.columns.map((column) => `<th>${escapeHtml(column)}</th>`).join("")}</tr>`;
+      tbody.innerHTML = state.rows.map((row) => `<tr>${state.columns.map((column) => `<td>${escapeHtml(row[column] ?? "")}</td>`).join("")}</tr>`).join("");
+    }
   }
 
   const numericNegative = /^\s*-(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?\s*$/;
@@ -836,6 +864,13 @@
   }
 
   function buildCsv() {
+    if (transposeToggle.checked) {
+      const fileLabels = state.rows.map((row, index) => row.SourceFile || `File ${index + 1}`);
+      const header = ["Field", ...fileLabels].map(csvValue).join(",");
+      const lines = state.columns.filter((column) => column !== "SourceFile")
+        .map((column) => [column, ...state.rows.map((row) => row[column] ?? "")].map(csvValue).join(","));
+      return [header, ...lines].join("\r\n");
+    }
     return [state.columns.map(csvValue).join(","), ...state.rows.map((row) => state.columns.map((column) => csvValue(row[column] ?? "")).join(","))].join("\r\n");
   }
 
@@ -865,6 +900,7 @@
   dropZone.addEventListener("drop", (event) => chooseFiles(event.dataTransfer.files));
   processButton.addEventListener("click", processFiles);
   clearButton.addEventListener("click", () => { state.files = []; state.rows = []; state.columns = []; resultsCard.hidden = true; renderFiles(); setStatus("Selection cleared."); });
+  transposeToggle.addEventListener("change", renderResults);
   templateInput.addEventListener("change", (event) => {
     const file = event.target.files[0];
     event.target.value = "";

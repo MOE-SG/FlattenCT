@@ -20,6 +20,10 @@ Nested ECMB diagnostics tables are matched to their outer `Actual Reading` heade
 
 In AGR reports, the `Trigger Source` section (whichever axis/parameter actually triggered the last max-reading event, plus its Peak/Shock/Avg/Ang values) always exports under a fixed set of column names, with the triggering parameter's own identity (e.g. `Ang`, `Peak Ang`) stored as its own field rather than folded into the other columns' names — otherwise the same field would land under a different column name in every file, depending on which parameter happened to trigger it.
 
+A trailing range-status flag on a number — a bare `L` (low) or `H` (high) directly after the value, with or without a space (`1.70 L`, `-0.5H`, `0 L`) — is stripped before the value is stored, leaving just the number. This only matches when the whole value is a number plus that single letter, so it never touches ordinary text or units.
+
+The preview and downloaded CSV can be shown transposed — fields as rows, one column per source file — via the "Transpose" checkbox above the results table. This is often easier to scan when a report produces many fields but you're only comparing a handful of files.
+
 Nested M5 diagnostics tables use the same outer-header matching and tolerate parameters with blank units. Their actual readings, including status suffixes such as `H`, `L`, and `NaN Failed`, are retained without exporting limits. The focused regression page at `tests/m5-regression.html` validates this layout.
 
 M5 Low Gain tables with two measurements in one row split each row into separate fields, such as `LowGain_250kHz_8-inch LT_Phase Shift(deg)` and `LowGain_250kHz_8-inch LT_Attenuation(dB)`.

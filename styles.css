@@ -46,6 +46,7 @@ h2 { margin-bottom: 0; font-size: 22px; letter-spacing: -.02em; }
 .status.error .status-dot { background: var(--red); }
 .status.success .status-dot { background: var(--green); }
 .result-summary { margin: -6px 0 17px; color: var(--muted); font-size: 13px; }
+.transpose-toggle { display: flex; align-items: center; gap: 7px; margin: -10px 0 14px; font-size: 13px; color: var(--ink); cursor: pointer; }
 .output-note { margin: -8px 0 17px; color: var(--muted); font-size: 12px; }
 .table-wrap { max-width: 100%; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
 table { width: 100%; border-collapse: collapse; font-size: 12px; white-space: nowrap; }
