@@ -206,15 +206,17 @@
     // Many sensor/instrument reports give each parameter its own row of
     // [Label, Units, Value] with no shared header row at all - e.g.
     // "Mud Resistivity | ohm-meter | 0.00" followed by "Voltage | % | 0.00".
-    // A row with no unit for that parameter often renders as just 2 cells
-    // (or 3 with a blank middle cell), so - as with the colon-list block above
-    // - detect this from the *raw* cells and cap it at 3 columns: real
-    // multi-column data tables in these reports need more columns than that,
-    // so this only catches the label/units/value shape, never a genuine
-    // shared-header table.
-    const maxRawCells = rawParsed.reduce((max, cells) => Math.max(max, cells.length), 0);
-    if (maxRawCells >= 2 && maxRawCells <= 3 && rawParsed.some((cells) => cells.length >= 2)) {
-      for (const cells of rawParsed) {
+    // A row with no unit for that parameter often renders with a blank units
+    // cell, and some reports pad rows with extra decorative empty cells for
+    // layout/spacing on top of that - so this is checked against the already
+    // blank-filtered `parsed` cells (not raw), which collapses both kinds of
+    // padding down to just the meaningful label/units/value cells. Capped at
+    // 3 columns: real multi-column data tables in these reports need more
+    // meaningful columns than that, so this only ever catches the
+    // label/units/value shape, never a genuine shared-header table.
+    const maxCells = parsed.reduce((max, cells) => Math.max(max, cells.length), 0);
+    if (maxCells >= 2 && maxCells <= 3 && parsed.some((cells) => cells.length >= 2)) {
+      for (const cells of parsed) {
         if (cells.length < 2) continue;
         const label = cells[0].replace(/[:：]$/, "");
         if (!isUseful(label)) continue;
