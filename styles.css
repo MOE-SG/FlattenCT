@@ -54,6 +54,12 @@ th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); border-right:
 th { position: sticky; top: 0; background: #f3f7fb; color: var(--ink); font-size: 11px; }
 tr:last-child td { border-bottom: 0; }
 th:last-child, td:last-child { border-right: 0; }
+/* Transposed preview with more than one file: fixed, narrow columns with
+   wrapping text instead of one wide column per file stretching the layout. */
+table.preview-fixed-width { table-layout: fixed; }
+table.preview-fixed-width th, table.preview-fixed-width td { white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
+table.preview-fixed-width th:first-child, table.preview-fixed-width td:first-child { width: 20ch; }
+table.preview-fixed-width th:not(:first-child), table.preview-fixed-width td:not(:first-child) { width: 10ch; }
 .assumptions summary { cursor: pointer; font-weight: 750; }
 .assumptions ul { margin: 18px 0 0; padding-left: 20px; color: var(--muted); font-size: 13px; line-height: 1.7; }
 code { padding: 2px 4px; border-radius: 4px; background: var(--soft); font-size: .92em; }
@@ -63,6 +69,7 @@ code { padding: 2px 4px; border-radius: 4px; background: var(--soft); font-size:
 .modal { background: #fff; border-radius: 14px; padding: 24px; width: min(460px, 100%); box-shadow: 0 20px 60px rgba(10, 20, 35, .25); }
 .modal h3 { margin: 0 0 6px; font-size: 18px; }
 .modal-hint { margin: 0 0 16px; color: var(--muted); font-size: 13px; }
+.consistency-list { margin: 0 0 14px; padding-left: 20px; font-size: 13px; color: var(--ink); line-height: 1.6; }
 .modal-field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: var(--ink); }
 .modal-field input { font: inherit; font-size: 14px; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 8px; color: var(--ink); }
 .modal-field input:focus { outline: none; border-color: var(--blue); }

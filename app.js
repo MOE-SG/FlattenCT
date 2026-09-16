@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const state = { files: [], rows: [], columns: [], templateColumns: null };
+  const state = { files: [], rows: [], columns: [], templateColumns: null, consistencyAcknowledged: false };
   const $ = (id) => document.getElementById(id);
   const fileInput = $("file-input");
   const dropZone = $("drop-zone");
@@ -20,6 +20,10 @@
   const templateClear = $("template-clear");
   const templateStatus = $("template-status");
   const transposeToggle = $("transpose-toggle");
+  const consistencyOverlay = $("consistency-modal-overlay");
+  const consistencyList = $("consistency-modal-list");
+  const consistencyClear = $("consistency-clear");
+  const consistencyContinue = $("consistency-continue");
 
   const clean = (value) => (value || "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
   // Many confidence-test reports flag an out-of-range reading by appending a
@@ -231,7 +235,6 @@
     const looksLikeHeader = header.length > 2 && header.some((cell) => /actual|value|reading|result|limit|unit|status/i.test(cell));
     // Some reports render a header row and its data rows as two separate <table>
     // elements that only *look* like one continuous table. If the previous table
-    // was a lone header row we couldn't otherwise place (see below), and this
     // was a lone header row we couldn't otherwise place (see below), and this
     // table has no header of its own but the same column count, treat it as that
     // header's data section instead of misreading its first data row as a header.
@@ -593,12 +596,59 @@
     const htmlFiles = Array.from(files).filter((file) => /\.html?$/i.test(file.name) || file.type === "text/html");
     const existing = new Set(state.files.map((file) => `${file.name}:${file.size}:${file.lastModified}`));
     state.files = state.files.concat(htmlFiles.filter((file) => !existing.has(`${file.name}:${file.size}:${file.lastModified}`)));
+    state.consistencyAcknowledged = false;
     renderFiles();
     if (htmlFiles.length !== files.length) setStatus("Only .html and .htm files were added.", "error");
     else setStatus("Ready to flatten the selected reports.");
   }
 
+  // --- File-consistency check: warn before mixing very different reports -----
+  // This tool is built around Confidence Test (CT) reports. Flattening a batch
+  // that mixes different products, or includes files that don't even look like
+  // CT reports, tends to produce a mismatched or confusing result (very
+  // different fields per file, or a huge, mostly-empty column set) rather than
+  // an outright error - so it's worth a heads-up before spending time on it.
+  function checkFileConsistency() {
+    const issues = [];
+    const missingConfide = state.files.filter((file) => !/confide/i.test(file.name));
+    if (missingConfide.length) {
+      issues.push(`${missingConfide.length} of ${state.files.length} file name(s) don't contain "Confidence" and may not be Confidence Test (CT) reports: ${missingConfide.map((file) => file.name).join(", ")}`);
+    }
+    const products = new Set(state.files.map((file) => extractProductFromName(file.name)).filter(Boolean));
+    if (products.size > 1) {
+      issues.push(`Multiple different product types detected in this batch: ${Array.from(products).join(", ")}`);
+    }
+    return issues;
+  }
+
+  function openConsistencyModal(issues, onContinue) {
+    consistencyList.innerHTML = issues.map((issue) => `<li>${escapeHtml(issue)}</li>`).join("");
+    consistencyOverlay.hidden = false;
+    consistencyContinue.onclick = () => {
+      consistencyOverlay.hidden = true;
+      state.consistencyAcknowledged = true;
+      onContinue();
+    };
+    consistencyClear.onclick = () => {
+      consistencyOverlay.hidden = true;
+      state.files = [];
+      state.rows = [];
+      state.columns = [];
+      state.consistencyAcknowledged = false;
+      resultsCard.hidden = true;
+      renderFiles();
+      setStatus("Selection cleared.");
+    };
+  }
+
   async function processFiles() {
+    if (!state.consistencyAcknowledged) {
+      const issues = checkFileConsistency();
+      if (issues.length) {
+        openConsistencyModal(issues, processFiles);
+        return;
+      }
+    }
     processButton.disabled = true;
     if (state.templateColumns) {
       // A verified template is loaded: skip the manual review step entirely and
@@ -725,9 +775,15 @@
     resultsCard.hidden = state.rows.length === 0;
     if (!state.rows.length) return;
     $("result-summary").textContent = `${state.rows.length} rows × ${state.columns.length} columns. Empty cells mean that field was not present in that source report.`;
-    const thead = $("preview-table").querySelector("thead");
-    const tbody = $("preview-table").querySelector("tbody");
-    if (transposeToggle.checked) {
+    const previewTable = $("preview-table");
+    const thead = previewTable.querySelector("thead");
+    const tbody = previewTable.querySelector("tbody");
+    const transposed = transposeToggle.checked;
+    // With more than one file, a transposed table can have many narrow data
+    // columns side by side; fix their widths and force text to wrap instead of
+    // stretching the layout or overflowing.
+    previewTable.classList.toggle("preview-fixed-width", transposed && state.rows.length > 1);
+    if (transposed) {
       // Fields as rows, files as columns - easier to scan when there are many
       // fields but only a handful of files. SourceFile itself becomes the
       // column header, so it's skipped as a field row to avoid repeating it.
@@ -863,14 +919,11 @@
     }
   }
 
+  // The downloaded CSV always uses the standard one-row-per-file layout,
+  // regardless of the on-screen "Transpose" toggle - that toggle is a viewing
+  // convenience for the preview only, since a transposed CSV is awkward to
+  // work with in the spreadsheet tools people typically open it in next.
   function buildCsv() {
-    if (transposeToggle.checked) {
-      const fileLabels = state.rows.map((row, index) => row.SourceFile || `File ${index + 1}`);
-      const header = ["Field", ...fileLabels].map(csvValue).join(",");
-      const lines = state.columns.filter((column) => column !== "SourceFile")
-        .map((column) => [column, ...state.rows.map((row) => row[column] ?? "")].map(csvValue).join(","));
-      return [header, ...lines].join("\r\n");
-    }
     return [state.columns.map(csvValue).join(","), ...state.rows.map((row) => state.columns.map((column) => csvValue(row[column] ?? "")).join(","))].join("\r\n");
   }
 
@@ -899,7 +952,7 @@
   ["dragleave", "drop"].forEach((eventName) => dropZone.addEventListener(eventName, (event) => { event.preventDefault(); dropZone.classList.remove("is-dragging"); }));
   dropZone.addEventListener("drop", (event) => chooseFiles(event.dataTransfer.files));
   processButton.addEventListener("click", processFiles);
-  clearButton.addEventListener("click", () => { state.files = []; state.rows = []; state.columns = []; resultsCard.hidden = true; renderFiles(); setStatus("Selection cleared."); });
+  clearButton.addEventListener("click", () => { state.files = []; state.rows = []; state.columns = []; state.consistencyAcknowledged = false; resultsCard.hidden = true; renderFiles(); setStatus("Selection cleared."); });
   transposeToggle.addEventListener("change", renderResults);
   templateInput.addEventListener("change", (event) => {
     const file = event.target.files[0];

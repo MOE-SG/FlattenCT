@@ -76,7 +76,7 @@
         <button class="button primary" id="download-button" type="button">Download CSV</button>
       </div>
       <div class="result-summary" id="result-summary"></div>
-      <label class="transpose-toggle"><input type="checkbox" id="transpose-toggle"> Transpose (show fields as rows, files as columns)</label>
+      <label class="transpose-toggle"><input type="checkbox" id="transpose-toggle" checked> Transpose (show fields as rows, files as columns) - preview only, the downloaded CSV always uses one row per file</label>
       <p class="output-note">CSV values that could be interpreted as Excel formulas or commands are prefixed with an apostrophe. Ordinary negative numbers remain unchanged.</p>
       <div class="table-wrap">
         <table id="preview-table">
@@ -91,6 +91,7 @@
       <summary>Parsing assumptions</summary>
       <ul>
         <li>Each selected file produces exactly one CSV row. Columns are the union of fields found across all files.</li>
+        <li>Clicking "Flatten reports" checks that every file name contains "Confidence" and that all files share the same detected product; if not, a warning lets you clear the selection or continue anyway.</li>
         <li>Visible table labels, parameter rows, report metadata, and text lines in <code>Name: value</code> form are collected.</li>
         <li>Nested headings and table captions prefix fields with an underscore path (for example <code>Power_Actual</code>).</li>
         <li>Confidence-test measurement tables export only <code>Actual Reading</code>; category, parameter, and unit are combined (for example <code>2MHz_ReceiverTemperature (C)</code>).</li>
@@ -106,6 +107,18 @@
       </ul>
     </details>
   </main>
+
+  <div class="modal-overlay" id="consistency-modal-overlay" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="consistency-modal-title">
+      <h3 id="consistency-modal-title">These files don't look consistent</h3>
+      <ul class="consistency-list" id="consistency-modal-list"></ul>
+      <p class="modal-hint">This tool is built for Confidence Test (CT) report data from a single product. Flattening a mixed or unrecognized batch can produce a mismatched or messy result. Clear this selection and re-upload a consistent batch of the same product and format, or continue at your own risk.</p>
+      <div class="modal-actions">
+        <button class="button ghost" id="consistency-clear" type="button">Clear selection</button>
+        <button class="button primary" id="consistency-continue" type="button">Continue anyway</button>
+      </div>
+    </div>
+  </div>
 
   <div class="modal-overlay" id="table-review-overlay" hidden>
     <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="table-review-title">
@@ -134,6 +147,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=27"></script>
+  <script src="app.js?v=28"></script>
 </body>
 </html>

@@ -40,6 +40,14 @@ Once you've confirmed a CSV export is correct for a given product, you can uploa
 
 No files leave the browser. The included `.nojekyll` marker makes the site compatible with static GitHub Pages hosting.
 
+## File-consistency check
+
+Clicking "Flatten reports" first checks that every selected file name contains "Confidence" and that all files share the same detected product (from the same list used for the download filename suggestion). If either check fails, a warning lists the specific issues found and offers to clear the selection or continue anyway — this tool is built around Confidence Test (CT) reports of a single product, and mixing very different formats tends to produce a mismatched or confusing result rather than an outright error.
+
+## Viewing and downloading
+
+The preview table can be shown transposed (fields as rows, one column per file) via the checkbox above it — checked by default, since it's usually easier to scan than a very wide table once there are more than a handful of fields. With more than one file, the transposed columns use a fixed width with wrapping text (about 20 characters per line for field names, 10 for data) rather than stretching to fit their content. The downloaded CSV always uses the standard one-row-per-file layout regardless of this toggle, since a transposed CSV is awkward to work with in the spreadsheet tools people typically open it in next.
+
 ## CSV safety
 
 Before serialization, values beginning with `=`, `+`, `@`, or a non-numeric `-` (including after leading whitespace or a BOM) are prefixed with an apostrophe. This makes Excel treat them as literal text instead of formulas or commands. Valid negative numeric values are preserved, and standard RFC-compatible CSV quoting is applied afterward.
