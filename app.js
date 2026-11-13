@@ -9,6 +9,7 @@
   const processButton = $("process-button");
   const clearButton = $("clear-button");
   const downloadButton = $("download-button");
+  const llmButton = $("llm-button");
   const status = $("status");
   const statusText = $("status-text");
   const resultsCard = $("results-card");
@@ -948,6 +949,74 @@
   function closeFilenameModal() {
     filenameOverlay.hidden = true;
   }
+
+  // --- LLM records export: overview record + one record per field group ----------
+  // Field names are underscore paths ("2MHz_ReceiverTemperature (C)"); the first
+  // segment is the group, so each record holds one category of readings and
+  // repeats the serial, product and report file so it reads on its own.
+  const SERIAL_LABEL = /serial|s\/n|\bsn\b|tool\s*id/i;
+  const DATE_LABEL = /^(date|time|date ?time|test date|report date)$/i;
+
+  function llmGroups(row) {
+    const groups = new Map();
+    state.columns.forEach((column) => {
+      if (column === "SourceFile" || column === "ReportTitle") return;
+      const value = row[column];
+      if (value === undefined || value === null || String(value).trim() === "") return;
+      const cut = column.indexOf("_");
+      const group = cut > 0 ? column.slice(0, cut) : "Report details";
+      const label = cut > 0 ? column.slice(cut + 1).replace(/_/g, " · ") : column;
+      if (!groups.has(group)) groups.set(group, []);
+      groups.get(group).push([label, value]);
+    });
+    // Fold tiny groups together so records aren't one-liners
+    const out = [];
+    const small = [];
+    groups.forEach((fields, name) => {
+      if (name !== "Report details" && fields.length < 3) small.push(...fields.map(([k, v]) => [`${name} · ${k}`, v]));
+      else for (let i = 0; i < fields.length; i += 40) out.push([fields.length > 40 ? `${name} (part ${i / 40 + 1})` : name, fields.slice(i, i + 40)]);
+    });
+    if (small.length) for (let i = 0; i < small.length; i += 40) out.push(["Other readings" + (small.length > 40 ? ` (part ${i / 40 + 1})` : ""), small.slice(i, i + 40)]);
+    return out;
+  }
+
+  function openLlmExport() {
+    if (!state.rows.length || !window.LLMKit) return;
+    const { key, product } = detectKeyAndProduct();
+    LLMKit.open({
+      title: "Export LLM records",
+      tool: "FlattenCT",
+      docTitle: `Confidence test reports${product ? " · " + product : ""}`,
+      defaultName: suggestedFilename().replace(/\.csv$/i, "").replace(/-flattenCT$/i, "") + "-records",
+      items: state.rows.map((row, i) => ({
+        key: String(i),
+        label: row.SourceFile || `File ${i + 1}`,
+        filename: row.SourceFile || "",
+        content: Object.keys(row).filter((k) => SERIAL_LABEL.test(k)).map((k) => `Serial: ${row[k]}`).join("\n"),
+      })),
+      build: (serials) => {
+        const records = [];
+        state.rows.forEach((row, i) => {
+          const s = serials[String(i)];
+          const prod = extractProductFromName(row.SourceFile) || product || "";
+          const dateKey = Object.keys(row).find((k) => DATE_LABEL.test(k.split("_").pop().trim()));
+          const when = dateKey ? row[dateKey] : "";
+          const groups = llmGroups(row);
+          const head = [["Serial", s.serial], ["Product", prod], ["Report file", row.SourceFile], ["Test date", when]];
+          records.push({
+            title: `${s.serial} · ${prod ? prod + " " : ""}confidence test${when ? " · " + when : ""}`,
+            fields: [...head, ["Serial source", s.source], ["Report title", row.ReportTitle],
+              ["Sections", groups.map(([name, f]) => `${name} (${f.length})`).join("; ")]],
+          });
+          groups.forEach(([name, fields]) => {
+            records.push({ title: `${s.serial} · ${prod ? prod + " · " : ""}${name}`, fields: [...head, ...fields] });
+          });
+        });
+        return records;
+      },
+    });
+  }
+  llmButton.addEventListener("click", openLlmExport);
 
   fileInput.addEventListener("change", (event) => chooseFiles(event.target.files));
   ["dragenter", "dragover"].forEach((eventName) => dropZone.addEventListener(eventName, (event) => { event.preventDefault(); dropZone.classList.add("is-dragging"); }));

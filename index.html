@@ -4,6 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FlattenCT - HTML to CSV</title>
+  <meta name="author" content="Soe Moe (soe.moe@halliburton.com)">
+  <meta name="generator" content="Built with Claude Opus 5.5">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -29,7 +31,7 @@
       <div class="test-section">
         <h3>Test the App</h3>
         <p>Download a test report file to try out the metadata extraction feature:</p>
-        <a href="https://raw.githubusercontent.com/MOE-SG/FlattenCT/main/test-report.html" download="test-report.html" class="button">Download Test Report</a>
+        <a href="test-report.html" download="test-report.html" class="button">Download Test Report</a>
         <p style="font-size: 13px; color: #526078; margin-top: 8px;">This test file has no product name or 8-digit key in the filename, so you'll be prompted to provide them.</p>
       </div>
 
@@ -73,7 +75,10 @@
           <p class="eyebrow">2 / OUTPUT</p>
           <h2 id="results-title">Flattened data</h2>
         </div>
-        <button class="button primary" id="download-button" type="button">Download CSV</button>
+        <div class="actions" style="margin-top:0; flex-wrap:wrap;">
+          <button class="button primary" id="download-button" type="button">Download CSV</button>
+          <button class="button ghost" id="llm-button" type="button" title="Text records for a local LLM or RAG app">LLM records</button>
+        </div>
       </div>
       <div class="result-summary" id="result-summary"></div>
       <label class="transpose-toggle"><input type="checkbox" id="transpose-toggle" checked> Transpose (show fields as rows, files as columns) - preview only, the downloaded CSV always uses one row per file</label>
@@ -107,6 +112,7 @@
       </ul>
     </details>
   </main>
+  <footer class="credit">FlattenCT · Soe Moe · soe.moe@halliburton.com · Built with Claude Opus 5.5 · Works offline; files are never uploaded</footer>
 
   <div class="modal-overlay" id="consistency-modal-overlay" hidden>
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="consistency-modal-title">
@@ -147,6 +153,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=28"></script>
+  <script src="llm-kit.js?v=1"></script>
+  <script src="app.js?v=29"></script>
 </body>
 </html>
